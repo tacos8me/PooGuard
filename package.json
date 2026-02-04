@@ -16,10 +16,10 @@
   },
   "lint-staged": {
     "backend/**/*.js": [
-      "eslint --fix"
+      "eslint --fix --config backend/eslint.config.js"
     ],
     "frontend/**/*.{js,jsx,ts,tsx}": [
-      "eslint --fix"
+      "eslint --fix --config frontend/eslint.config.js"
     ],
     "model-service/**/*.py": [
       "black",
