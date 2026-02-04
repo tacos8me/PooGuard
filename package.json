@@ -1,0 +1,33 @@
+{
+  "name": "clawguard",
+  "version": "1.0.0",
+  "description": "ClawGuard - AI-powered firewall protection",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "prepare": "husky",
+    "lint": "npm run lint --workspaces --if-present",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:frontend": "cd frontend && npm run lint",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "lint-staged": {
+    "backend/**/*.js": [
+      "eslint --fix"
+    ],
+    "frontend/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix"
+    ],
+    "model-service/**/*.py": [
+      "black",
+      "flake8"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7"
+  }
+}

@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Docker
+.docker/
+
+# Testing
+coverage/
+.pytest_cache/
+.nyc_output/
+
+# Model cache (large files)
+*.bin
+*.safetensors
+model-cache/
+
+# Database
+*.sqlite
+*.db
+
+# TLS Certificates (NEVER commit these!)
+certs/
+*.pem
+*.key
+*.crt
+*.csr
+
+# Database backups (keep .gitkeep)
+backups/*.sql
+backups/*.sql.gz
+backups/*.tar.gz
