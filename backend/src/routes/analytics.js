@@ -30,7 +30,7 @@ router.get('/summary', async (req, res) => {
     const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000);
     const oneHourAgo = new Date(now - 60 * 60 * 1000);
 
-    const [dayStats, hourStats, recentBlocks] = await Promise.all([
+    const [dayStats, hourStats, recentEvents] = await Promise.all([
       db('request_logs')
         .where('timestamp', '>=', oneDayAgo)
         .select(
@@ -45,27 +45,54 @@ router.get('/summary', async (req, res) => {
         .select(db.raw('COUNT(*) as total'))
         .first(),
       db('request_logs')
-        .where('action', 'blocked')
         .orderBy('timestamp', 'desc')
-        .limit(5)
-        .select('id', 'timestamp', 'threat_scores', 'latency_ms')
+        .limit(20)
+        .select('id', 'timestamp', 'input_text', 'threat_scores', 'action', 'latency_ms')
     ]);
+
+    const total24h = parseInt(dayStats.total) || 0;
+    const blocked24h = parseInt(dayStats.blocked) || 0;
+    const flagged24h = parseInt(dayStats.flagged) || 0;
+    const activeThreats = blocked24h + flagged24h;
+    const blockRate = total24h > 0
+      ? parseFloat(((blocked24h / total24h) * 100).toFixed(1))
+      : 0;
+    const avgLatencyMs = Math.round(dayStats.avg_latency) || 0;
+    const hourTotal = parseInt(hourStats.total) || 0;
+    const requestsPerMinute = parseFloat((hourTotal / 60).toFixed(2));
+
+    // Compute threat level based on block rate and active threats
+    let threatLevel = 'low';
+    if (blockRate > 50 || activeThreats > 100) threatLevel = 'critical';
+    else if (blockRate > 30 || activeThreats > 50) threatLevel = 'high';
+    else if (blockRate > 10 || activeThreats > 10) threatLevel = 'medium';
+
+    // Mask secrets in recent events
+    const maskedRecentEvents = recentEvents.map(evt => ({
+      ...evt,
+      input_text: secretMasker.mask(evt.input_text || '').masked
+    }));
 
     res.json({
       last24Hours: {
-        total: parseInt(dayStats.total) || 0,
-        blocked: parseInt(dayStats.blocked) || 0,
-        flagged: parseInt(dayStats.flagged) || 0,
-        avgLatencyMs: Math.round(dayStats.avg_latency) || 0,
-        blockRate: dayStats.total > 0
-          ? ((dayStats.blocked / dayStats.total) * 100).toFixed(1)
-          : 0
+        total: total24h,
+        blocked: blocked24h,
+        flagged: flagged24h,
+        avgLatencyMs,
+        blockRate
       },
       lastHour: {
-        total: parseInt(hourStats.total) || 0,
-        requestsPerMinute: (parseInt(hourStats.total) / 60).toFixed(2)
+        total: hourTotal,
+        requestsPerMinute
       },
-      recentBlocks
+      recentBlocks: maskedRecentEvents.filter(e => e.action === 'blocked').slice(0, 5),
+      // Flat fields for dashboard consumption
+      requests_per_minute: requestsPerMinute,
+      block_rate: blockRate,
+      active_threats_today: activeThreats,
+      avg_latency_ms: avgLatencyMs,
+      threat_level: threatLevel,
+      recent_events: maskedRecentEvents
     });
   } catch (error) {
     logger.error('Summary error', { error: error.message });
@@ -112,7 +139,15 @@ router.get('/timeline', async (req, res) => {
       .groupByRaw(`TO_CHAR(timestamp, '${dateFormat}')`)
       .orderBy('time_bucket');
 
-    res.json({ timeline });
+    // Parse COUNT bigints to numbers (pg driver returns strings)
+    const parsed = timeline.map(row => ({
+      time_bucket: row.time_bucket,
+      total: parseInt(row.total) || 0,
+      blocked: parseInt(row.blocked) || 0,
+      flagged: parseInt(row.flagged) || 0,
+    }));
+
+    res.json({ timeline: parsed });
   } catch (error) {
     logger.error('Timeline error', { error: error.message });
     res.status(500).json({ error: 'Failed to get timeline' });
@@ -121,29 +156,38 @@ router.get('/timeline', async (req, res) => {
 
 router.get('/threats', async (req, res) => {
   try {
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const { period = '24h' } = req.query;
 
-    const logs = await db('request_logs')
-      .where('timestamp', '>=', oneDayAgo)
+    // Validate period parameter against whitelist
+    if (!ALLOWED_PERIODS.includes(period)) {
+      return res.status(400).json({
+        error: 'Invalid period parameter',
+        allowed: ALLOWED_PERIODS
+      });
+    }
+
+    const periodMap = { '1h': 1, '24h': 24, '7d': 168, '30d': 720 };
+    const periodHours = periodMap[period];
+    const startTime = new Date(Date.now() - periodHours * 60 * 60 * 1000);
+
+    const result = await db('request_logs')
+      .where('timestamp', '>=', startTime)
       .whereNot('action', 'allowed')
-      .select('threat_scores');
-
-    let promptInjection = 0, jailbreak = 0, pii = 0;
-
-    logs.forEach(log => {
-      const scores = log.threat_scores;
-      if (scores.prompt_injection >= 0.7) promptInjection++;
-      if (scores.jailbreak >= 0.7) jailbreak++;
-      if (scores.pii >= 0.5) pii++;
-    });
+      .select(
+        db.raw("COUNT(*) FILTER (WHERE (threat_scores->>'prompt_injection')::float >= 0.7) as prompt_injection"),
+        db.raw("COUNT(*) FILTER (WHERE (threat_scores->>'jailbreak')::float >= 0.7) as jailbreak"),
+        db.raw("COUNT(*) FILTER (WHERE (threat_scores->>'pii')::float >= 0.5) as pii"),
+        db.raw('COUNT(*) as total')
+      )
+      .first();
 
     res.json({
       breakdown: [
-        { type: 'Prompt Injection', count: promptInjection },
-        { type: 'Jailbreak', count: jailbreak },
-        { type: 'PII Detection', count: pii }
+        { type: 'Prompt Injection', count: parseInt(result.prompt_injection) || 0 },
+        { type: 'Jailbreak', count: parseInt(result.jailbreak) || 0 },
+        { type: 'PII Detection', count: parseInt(result.pii) || 0 }
       ],
-      total: logs.length
+      total: parseInt(result.total) || 0
     });
   } catch (error) {
     logger.error('Threats error', { error: error.message });

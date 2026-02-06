@@ -328,9 +328,10 @@ PROMPT_INJECTION_THRESHOLD = float(os.getenv("PROMPT_INJECTION_THRESHOLD", "0.70
 JAILBREAK_THRESHOLD = float(os.getenv("JAILBREAK_THRESHOLD", "0.70"))
 PII_THRESHOLD = float(os.getenv("PII_THRESHOLD", "0.70"))
 
-# GPU memory management threshold (in bytes, default 8GB)
+# GPU memory management threshold (in bytes, default 24GB)
+# Model uses ~13GB in MXFP4; set well above steady-state to avoid per-request cleanup spam
 GPU_MEMORY_CLEANUP_THRESHOLD = int(
-    os.getenv("GPU_MEMORY_CLEANUP_THRESHOLD", str(8 * 1024 * 1024 * 1024))
+    os.getenv("GPU_MEMORY_CLEANUP_THRESHOLD", str(24 * 1024 * 1024 * 1024))
 )
 
 # Calibration parameters file path

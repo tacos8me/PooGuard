@@ -221,31 +221,30 @@
 
 ---
 
-## Blockers & Risks
-
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| - | - | - |
-
----
-
 ## Decision Log
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
 | 2026-02-05 | Created security hardening plan | Assessment revealed critical gaps in output filtering and secret masking |
+| 2026-02-06 | Expanded attack patterns 50→121 | Moltbook research provided 18 attack categories for semantic similarity |
+| 2026-02-06 | Raised semantic threshold 0.35→0.42 | Benchmark showed false positives on security-topic clean text |
+| 2026-02-06 | Added API key auth for /v1 proxy | External chat clients need Bearer token auth, not JWT |
 
 ---
 
-## Next Actions
+## Current Test Coverage
 
-1. Begin Phase 4 (P3) tasks:
-   - Task 4.1: Explainable Scores
-   - Task 4.2: Data Retention Automation
-   - Task 4.3: ML Evasion Detection
-2. Run database migrations for new tables (audit_logs, alert types)
-3. Integration testing with Docker compose
-4. Update frontend dashboard to display:
-   - Session threat tracking UI
-   - Enhanced alert types configuration
-   - Fingerprinting analytics
+| Component | Tests | Status |
+|-----------|-------|--------|
+| Backend | 442 | Pass |
+| Model Service | 217 | Pass |
+| Frontend | 31 | Pass |
+| **Total** | **690** | **Pass** |
+
+---
+
+## Remaining Work (P3 — Low Priority)
+
+1. Task 4.1: Explainable Scores — show which patterns triggered detection
+2. Task 4.2: Data Retention Automation — auto-purge old logs
+3. Task 4.3: ML Evasion Detection — adversarial example hardening

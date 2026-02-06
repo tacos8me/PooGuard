@@ -148,7 +148,7 @@ function Analytics() {
     queryKey: ['analytics', 'logs', page, filter],
     queryFn: async () => {
       const params = new URLSearchParams({ page: page.toString() });
-      if (filter !== 'all') params.append('filter', filter);
+      if (filter !== 'all') params.append('action', filter);
       const response = await api.get(`/api/analytics/logs?${params}`);
       return response.data;
     },
@@ -399,7 +399,7 @@ function Analytics() {
               <BarChart data={getHourlyData()}>
                 <CartesianGrid stroke={CHART_GRID_COLOR} strokeDasharray="3 3" />
                 <XAxis
-                  dataKey="hour"
+                  dataKey="time_bucket"
                   stroke={CHART_GRID_COLOR}
                   tick={CHART_AXIS_STYLE}
                   tickFormatter={formatHourLabel}

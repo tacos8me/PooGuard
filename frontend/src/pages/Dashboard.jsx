@@ -462,9 +462,14 @@ export default function Dashboard() {
       });
       setThreatLevel(analyticsData.threat_level || 'low');
 
-      // Set initial events if available
+      // Set initial events if available, deduplicating with existing WebSocket events
       if (analyticsData.recent_events) {
-        setEvents(analyticsData.recent_events);
+        setEvents((prev) => {
+          if (prev.length === 0) return analyticsData.recent_events;
+          const existingIds = new Set(prev.map(e => e.id).filter(Boolean));
+          const newFromApi = analyticsData.recent_events.filter(e => !existingIds.has(e.id));
+          return [...prev, ...newFromApi].slice(0, 100);
+        });
       }
     }
   }, [analyticsData]);

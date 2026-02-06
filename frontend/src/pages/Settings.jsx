@@ -859,8 +859,8 @@ function Settings() {
             onConfirm={() => keyToRevoke && revokeKeyMutation.mutate(keyToRevoke.id)}
             title="Revoke API Key"
             message={`Revoke "${keyToRevoke?.name}"? Any client using this key will immediately lose access.`}
-            confirmLabel="Revoke"
-            confirmVariant="danger"
+            confirmText="Revoke"
+            variant="danger"
           />
 
           {/* Upstream Model */}

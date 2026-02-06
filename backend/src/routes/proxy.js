@@ -375,13 +375,13 @@ async function handleNonStreaming(req, res, upstreamUrl, headers, body, ctx) {
 }
 
 // How often (in accumulated characters) to run mid-stream egress checks
-const STREAM_EGRESS_CHECK_INTERVAL = 500;
+const STREAM_EGRESS_CHECK_INTERVAL = 2000;
 
 /**
  * Handle streaming (SSE) proxy request.
- * Accumulates content and runs periodic egress checks. If sensitive data is
- * detected mid-stream, injects a warning event and terminates the stream
- * to prevent further leakage.
+ * Uses a rolling window for egress checks to avoid O(n²) memory growth.
+ * If sensitive data is detected mid-stream, injects a warning event and
+ * terminates the stream to prevent further leakage.
  */
 async function handleStreaming(req, res, upstreamUrl, headers, body, ctx) {
   // Set SSE headers
@@ -391,7 +391,8 @@ async function handleStreaming(req, res, upstreamUrl, headers, body, ctx) {
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
 
-  let accumulatedContent = '';
+  let totalContentLength = 0;
+  let recentContent = '';       // Rolling window for egress checks (last ~4000 chars)
   let lastCheckedLength = 0;
   let streamTerminated = false;
 
@@ -419,17 +420,22 @@ async function handleStreaming(req, res, upstreamUrl, headers, body, ctx) {
           const parsed = JSON.parse(data);
           const delta = parsed.choices?.[0]?.delta?.content;
           if (delta) {
-            accumulatedContent += delta;
+            totalContentLength += delta.length;
+            recentContent += delta;
+            // Keep rolling window to ~4000 chars to bound memory
+            if (recentContent.length > 6000) {
+              recentContent = recentContent.slice(-4000);
+            }
           }
         } catch {
           // Not valid JSON, skip
         }
       }
 
-      // Periodic mid-stream egress check
-      if (accumulatedContent.length - lastCheckedLength >= STREAM_EGRESS_CHECK_INTERVAL) {
-        lastCheckedLength = accumulatedContent.length;
-        const midCheck = secretMasker.mask(accumulatedContent);
+      // Periodic mid-stream egress check on rolling window
+      if (totalContentLength - lastCheckedLength >= STREAM_EGRESS_CHECK_INTERVAL) {
+        lastCheckedLength = totalContentLength;
+        const midCheck = secretMasker.mask(recentContent);
         if (midCheck.detected.length > 0) {
           streamTerminated = true;
           logger.warn('Proxy stream egress: sensitive data detected mid-stream, terminating', {
@@ -453,8 +459,10 @@ async function handleStreaming(req, res, upstreamUrl, headers, body, ctx) {
             res.write('data: [DONE]\n\n');
           } catch { /* response may already be closed */ }
 
-          // Kill upstream
+          // Kill upstream — clean up listeners first to prevent leaks
+          recentContent = '';
           if (!response.data.destroyed) {
+            response.data.removeAllListeners();
             response.data.destroy();
           }
           res.end();
@@ -488,9 +496,9 @@ async function handleStreaming(req, res, upstreamUrl, headers, body, ctx) {
         clientIp: req.ip,
       });
 
-      // Final post-stream egress analysis on full content
-      if (accumulatedContent.length > 0) {
-        const masked = secretMasker.mask(accumulatedContent);
+      // Final post-stream egress analysis on recent content window
+      if (recentContent.length > 0) {
+        const masked = secretMasker.mask(recentContent);
         if (masked.detected.length > 0) {
           logger.warn('Proxy stream egress: sensitive data detected in completed response', {
             detectedCount: masked.detected.length,
@@ -508,10 +516,13 @@ async function handleStreaming(req, res, upstreamUrl, headers, body, ctx) {
         }
       }
 
+      // Release references for GC
+      recentContent = '';
+
       logger.info('Proxy stream completed', {
         action: ctx.action,
         latencyMs,
-        responseChars: accumulatedContent.length,
+        responseChars: totalContentLength,
         userId: req.user?.id,
       });
     });
@@ -526,9 +537,11 @@ async function handleStreaming(req, res, upstreamUrl, headers, body, ctx) {
       res.end();
     });
 
-    // Handle client disconnect
+    // Handle client disconnect — clean up to prevent memory leaks
     req.on('close', () => {
+      recentContent = '';
       if (!response.data.destroyed) {
+        response.data.removeAllListeners();
         response.data.destroy();
       }
     });
