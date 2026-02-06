@@ -79,7 +79,9 @@ describe('Layout', () => {
 
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(screen.getByText('Analytics')).toBeInTheDocument();
-    expect(screen.getByText('Alerts')).toBeInTheDocument();
+    expect(screen.getByText('Rules')).toBeInTheDocument();
+    expect(screen.getByText('Audit Log')).toBeInTheDocument();
+    expect(screen.getByText('Sessions')).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
@@ -113,12 +115,16 @@ describe('Layout', () => {
 
     const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
     const analyticsLink = screen.getByRole('link', { name: /analytics/i });
-    const alertsLink = screen.getByRole('link', { name: /alerts/i });
+    const rulesLink = screen.getByRole('link', { name: /rules/i });
+    const auditLink = screen.getByRole('link', { name: /audit log/i });
+    const sessionsLink = screen.getByRole('link', { name: /sessions/i });
     const settingsLink = screen.getByRole('link', { name: /settings/i });
 
     expect(dashboardLink).toHaveAttribute('href', '/dashboard');
     expect(analyticsLink).toHaveAttribute('href', '/analytics');
-    expect(alertsLink).toHaveAttribute('href', '/alerts');
+    expect(rulesLink).toHaveAttribute('href', '/alerts');
+    expect(auditLink).toHaveAttribute('href', '/audit');
+    expect(sessionsLink).toHaveAttribute('href', '/sessions');
     expect(settingsLink).toHaveAttribute('href', '/settings');
   });
 });

@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import api from '../lib/api';
 import useFocusTrap from '../hooks/useFocusTrap';
 import { useSocket } from '../context/SocketContext';
+import { useAuth } from '../context/AuthContext';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 // Alert Types
@@ -36,6 +37,170 @@ const TYPE_COLORS = {
 
 function getTypeColor(type) {
   return TYPE_COLORS[type] || TYPE_COLORS.threshold;
+}
+
+// Detection threshold constants (moved from Settings)
+const DETECTION_CATEGORIES = [
+  { key: 'prompt_injection', label: 'Prompt Injection', defaultThreshold: 0.70 },
+  { key: 'jailbreak', label: 'Jailbreak', defaultThreshold: 0.70 },
+  { key: 'pii', label: 'PII Detection', defaultThreshold: 0.70 },
+];
+
+const ACTIONS = [
+  { value: 'block', label: 'Block', color: 'red' },
+  { value: 'flag', label: 'Flag', color: 'yellow' },
+  { value: 'allow', label: 'Allow', color: 'green' },
+];
+
+const BORDER_COLORS = {
+  prompt_injection: 'border-l-red-500',
+  jailbreak: 'border-l-amber-500',
+  pii: 'border-l-cyan-500',
+};
+
+// Threshold presets calibrated against 294-example benchmark (Feb 2026).
+// Model scores are bimodal: 0.0 (no threat) or 0.8-0.95 (threat detected).
+const THRESHOLD_PRESETS = {
+  high_security: {
+    label: 'High Security',
+    description: 'Maximize threat detection. May flag ambiguous inputs.',
+    thresholds: { prompt_injection: 0.40, jailbreak: 0.40, pii: 0.50 },
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+    ),
+  },
+  balanced: {
+    label: 'Balanced',
+    description: 'Best F1 accuracy (PI=0.79, JB=0.65, PII=0.89, SEM=0.81). Recommended for most deployments.',
+    thresholds: { prompt_injection: 0.70, jailbreak: 0.70, pii: 0.70 },
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+      </svg>
+    ),
+  },
+  low_friction: {
+    label: 'Low Friction',
+    description: 'Minimize false positives (0 FP at these thresholds). Only blocks high-confidence threats.',
+    thresholds: { prompt_injection: 0.90, jailbreak: 0.90, pii: 0.90 },
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    ),
+  },
+  custom: {
+    label: 'Custom',
+    description: 'Manually configured thresholds.',
+    thresholds: null,
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+      </svg>
+    ),
+  },
+};
+
+function getSensitivityLabel(value) {
+  if (value < 0.3) return 'Very sensitive - may produce false positives';
+  if (value < 0.5) return 'Sensitive - balanced detection';
+  if (value < 0.7) return 'Moderate - standard detection';
+  if (value < 0.9) return 'Conservative - fewer false positives';
+  return 'Very conservative - only high-confidence detections';
+}
+
+function getSliderBackground(value) {
+  const percent = value * 100;
+  if (value < 0.4) {
+    return `linear-gradient(to right, #b07d4f 0%, #b07d4f ${percent}%, #352e29 ${percent}%, #352e29 100%)`;
+  }
+  if (value < 0.7) {
+    return `linear-gradient(to right, #b07d4f 0%, #f59e0b ${percent}%, #352e29 ${percent}%, #352e29 100%)`;
+  }
+  return `linear-gradient(to right, #b07d4f 0%, #f59e0b 50%, #ef4444 ${percent}%, #352e29 ${percent}%, #352e29 100%)`;
+}
+
+function getActionColor(action) {
+  switch (action) {
+    case 'block':
+      return 'text-red-400 bg-red-500/10 border-red-500/40';
+    case 'flag':
+      return 'text-amber-400 bg-amber-500/10 border-amber-500/40';
+    case 'allow':
+      return 'text-primary-400 bg-primary-500/10 border-primary-500/40';
+    default:
+      return 'text-dark-400 bg-dark-950 border-dark-700';
+  }
+}
+
+// ActionButtonGroup component with keyboard navigation
+function ActionButtonGroup({ threatKey, currentAction, onActionChange }) {
+  const buttonRefs = useRef([]);
+
+  const handleKeyDown = useCallback((event, currentIndex) => {
+    let newIndex = currentIndex;
+
+    switch (event.key) {
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        event.preventDefault();
+        newIndex = currentIndex === 0 ? ACTIONS.length - 1 : currentIndex - 1;
+        break;
+      case 'ArrowRight':
+      case 'ArrowDown':
+        event.preventDefault();
+        newIndex = currentIndex === ACTIONS.length - 1 ? 0 : currentIndex + 1;
+        break;
+      case 'Enter':
+      case ' ':
+        event.preventDefault();
+        onActionChange(threatKey, ACTIONS[currentIndex].value);
+        return;
+      case 'Home':
+        event.preventDefault();
+        newIndex = 0;
+        break;
+      case 'End':
+        event.preventDefault();
+        newIndex = ACTIONS.length - 1;
+        break;
+      default:
+        return;
+    }
+
+    if (buttonRefs.current[newIndex]) {
+      buttonRefs.current[newIndex].focus();
+    }
+  }, [threatKey, onActionChange]);
+
+  return (
+    <div
+      className="flex gap-1.5"
+      role="radiogroup"
+      aria-label={`Action for ${threatKey}`}
+    >
+      {ACTIONS.map((action, index) => (
+        <button
+          key={action.value}
+          ref={(el) => { buttonRefs.current[index] = el; }}
+          onClick={() => onActionChange(threatKey, action.value)}
+          onKeyDown={(e) => handleKeyDown(e, index)}
+          role="radio"
+          aria-checked={currentAction === action.value}
+          tabIndex={currentAction === action.value ? 0 : -1}
+          className={`flex-1 py-1.5 px-2 rounded border transition-all duration-200 font-mono text-[11px] uppercase tracking-wider text-center focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 focus:ring-offset-dark-950 ${
+            currentAction === action.value
+              ? getActionColor(action.value)
+              : 'text-dark-500 bg-dark-950 border-dark-700 hover:border-dark-600 hover:text-dark-400'
+          }`}
+        >
+          {action.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 // Reusable type badge component
@@ -790,12 +955,28 @@ function EmptyState({ message, onAction, actionLabel }) {
 // Main Alerts Component
 function Alerts() {
   const { socket } = useSocket();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAlert, setEditingAlert] = useState(null);
   const [toast, setToast] = useState(null);
   const [triggerFilter, setTriggerFilter] = useState('all');
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, alertId: null, alertName: '' });
+
+  // Detection rules state
+  const [thresholds, setThresholds] = useState({
+    prompt_injection: 0.70,
+    jailbreak: 0.70,
+    pii: 0.70,
+  });
+  const [actions, setActions] = useState({
+    prompt_injection: 'block',
+    jailbreak: 'block',
+    pii: 'flag',
+  });
+  const [selectedPreset, setSelectedPreset] = useState('custom');
+  const [hasDetectionChanges, setHasDetectionChanges] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
   // Refs for focus management
   const createButtonRef = useRef(null);
@@ -819,6 +1000,100 @@ function Alerts() {
       return response.data.triggers || [];
     },
   });
+
+  // Fetch firewall config for detection thresholds
+  const { data: firewallConfig } = useQuery({
+    queryKey: ['firewallConfig'],
+    queryFn: async () => {
+      const response = await api.get('/api/firewall/config');
+      return response.data;
+    },
+  });
+
+  // Populate detection state from config
+  useEffect(() => {
+    if (firewallConfig) {
+      const loadedThresholds = {
+        prompt_injection: firewallConfig.thresholds?.promptInjection ?? 0.70,
+        jailbreak: firewallConfig.thresholds?.jailbreak ?? 0.70,
+        pii: firewallConfig.thresholds?.pii ?? 0.70,
+      };
+      setThresholds(loadedThresholds);
+      setActions({
+        prompt_injection: firewallConfig.actions?.promptInjection ?? 'block',
+        jailbreak: firewallConfig.actions?.jailbreak ?? 'block',
+        pii: firewallConfig.actions?.pii ?? 'flag',
+      });
+      const matchedPreset = Object.entries(THRESHOLD_PRESETS).find(([, preset]) => {
+        if (!preset.thresholds) return false;
+        return Object.keys(preset.thresholds).every(
+          (k) => Math.abs((preset.thresholds[k] || 0) - (loadedThresholds[k] || 0)) < 0.005
+        );
+      });
+      setSelectedPreset(matchedPreset ? matchedPreset[0] : 'custom');
+      setHasDetectionChanges(false);
+    }
+  }, [firewallConfig]);
+
+  // Save detection rules mutation
+  const saveDetectionMutation = useMutation({
+    mutationFn: async ({ thresholds: t, actions: a }) => {
+      const payload = {
+        thresholds: {
+          promptInjection: t.prompt_injection,
+          jailbreak: t.jailbreak,
+          pii: t.pii,
+        },
+        actions: {
+          promptInjection: a.prompt_injection,
+          jailbreak: a.jailbreak,
+          pii: a.pii,
+        },
+        // Pass through other config fields unchanged
+        modelConfig: firewallConfig?.modelConfig
+          ? { ...firewallConfig.modelConfig, apiKey: '__UNCHANGED__' }
+          : { providerType: 'none', endpointUrl: '', apiKey: '__UNCHANGED__', modelName: '' },
+        safeguardModel: firewallConfig?.safeguardModel || '20b',
+        dataRetentionDays: firewallConfig?.dataRetentionDays ?? 90,
+        failMode: firewallConfig?.failMode || 'open',
+        analysisMode: firewallConfig?.analysisMode || 'sync',
+      };
+      const response = await api.put('/api/firewall/config', payload);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['firewallConfig'] });
+      setHasDetectionChanges(false);
+      setToast({ message: 'Detection rules saved', type: 'success' });
+    },
+    onError: (error) => {
+      setToast({ message: error.response?.data?.error || 'Failed to save detection rules', type: 'error' });
+    },
+  });
+
+  const handlePresetChange = (presetKey) => {
+    setSelectedPreset(presetKey);
+    const preset = THRESHOLD_PRESETS[presetKey];
+    if (preset?.thresholds) {
+      setThresholds({ ...preset.thresholds });
+      setHasDetectionChanges(true);
+    }
+  };
+
+  const handleThresholdChange = (key, value) => {
+    setThresholds((prev) => ({ ...prev, [key]: value }));
+    setSelectedPreset('custom');
+    setHasDetectionChanges(true);
+  };
+
+  const handleActionChange = (key, value) => {
+    setActions((prev) => ({ ...prev, [key]: value }));
+    setHasDetectionChanges(true);
+  };
+
+  const handleSaveDetection = () => {
+    saveDetectionMutation.mutate({ thresholds, actions });
+  };
 
   // Create alert mutation
   const createAlert = useMutation({
@@ -993,19 +1268,49 @@ function Alerts() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">Alert Console</h1>
-          <p className="text-sm text-zinc-500 mt-1 font-mono">Monitor and manage threat alert rules</p>
+          <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">Rules</h1>
+          <p className="text-sm text-zinc-500 mt-1 font-mono">Detection thresholds, response actions, and alert rules</p>
         </div>
-        <button
-          ref={createButtonRef}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 bg-primary-600 hover:bg-primary-500 text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-950"
-          onClick={() => setIsModalOpen(true)}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Create Alert
-        </button>
+        <div className="flex items-center gap-3">
+          {user?.role === 'admin' && (
+            <button
+              onClick={() => setShowSaveConfirm(true)}
+              disabled={!hasDetectionChanges || saveDetectionMutation.isPending}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-mono text-xs uppercase tracking-wider transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-950 ${
+                hasDetectionChanges && !saveDetectionMutation.isPending
+                  ? 'bg-primary-600 hover:bg-primary-500 text-white shadow-glow-green-sm hover:shadow-glow-green'
+                  : 'bg-dark-700 text-dark-500 cursor-not-allowed'
+              }`}
+            >
+              {saveDetectionMutation.isPending ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Save Detection Rules
+                </>
+              )}
+            </button>
+          )}
+          <button
+            ref={createButtonRef}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 border border-dark-600 bg-dark-800 text-dark-300 hover:text-dark-100 hover:border-dark-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-950"
+            onClick={() => setIsModalOpen(true)}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Create Alert
+          </button>
+        </div>
       </div>
 
       {/* Stats Strip */}
@@ -1015,6 +1320,101 @@ function Alerts() {
         <StatCard label="Triggered" value={totalTriggers} accent="amber" />
         <StatCard label="Unacknowledged" value={unacknowledgedCount} accent="red" />
       </div>
+
+      {/* Detection Rules Section */}
+      {user?.role === 'admin' && (
+        <div className="space-y-4">
+          {/* Threshold Presets — single row */}
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-dark-500 shrink-0">Preset</span>
+            <div className="flex gap-2 flex-1">
+              {Object.entries(THRESHOLD_PRESETS).map(([key, preset]) => (
+                <button
+                  key={key}
+                  onClick={() => handlePresetChange(key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded border transition-all duration-200 font-mono text-xs tracking-wider focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 focus:ring-offset-dark-950 ${
+                    selectedPreset === key
+                      ? 'border-primary-500/40 bg-primary-500/10 text-primary-400'
+                      : 'border-dark-700 bg-dark-950 text-dark-400 hover:border-dark-600 hover:text-dark-300'
+                  }`}
+                  title={preset.description}
+                >
+                  <span className={selectedPreset === key ? 'text-primary-400' : 'text-dark-500'}>
+                    {preset.icon}
+                  </span>
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Detection Rules — 3 columns */}
+          <div className="grid md:grid-cols-3 gap-3">
+            {DETECTION_CATEGORIES.map((threat) => {
+              const value = Number(thresholds[threat.key] ?? threat.defaultThreshold);
+              return (
+                <div
+                  key={threat.key}
+                  className={`bg-dark-900 border border-dark-700 border-l-4 ${BORDER_COLORS[threat.key]} rounded p-4 space-y-3`}
+                >
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-mono uppercase tracking-widest text-dark-400">
+                      {threat.label}
+                    </label>
+                    <span className="text-lg font-mono text-dark-100 tabular-nums">
+                      {value.toFixed(2)}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono text-dark-600">0</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={value}
+                        onChange={(e) => handleThresholdChange(threat.key, parseFloat(e.target.value))}
+                        className="flex-1 h-1.5 rounded-full appearance-none cursor-pointer slider"
+                        style={{ background: getSliderBackground(value) }}
+                        aria-valuemin={0}
+                        aria-valuemax={1}
+                        aria-valuenow={value}
+                        aria-valuetext={`${(value * 100).toFixed(0)}%`}
+                        aria-label={`${threat.label} detection threshold`}
+                      />
+                      <span className="text-[10px] font-mono text-dark-600">1</span>
+                    </div>
+                    <p className="text-[10px] text-dark-500 mt-1 font-mono">
+                      {getSensitivityLabel(value)}
+                    </p>
+                  </div>
+
+                  <ActionButtonGroup
+                    threatKey={threat.key}
+                    currentAction={actions[threat.key]}
+                    onActionChange={handleActionChange}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Save Detection Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={showSaveConfirm}
+        onClose={() => setShowSaveConfirm(false)}
+        onConfirm={() => {
+          setShowSaveConfirm(false);
+          handleSaveDetection();
+        }}
+        title="Save Detection Rules"
+        message="This will update firewall detection thresholds and response actions for all incoming requests. Changes take effect immediately."
+        variant="warning"
+        confirmText="Save Changes"
+      />
 
       {/* Alert Rules Section */}
       <div className="bg-dark-900 rounded-xl border border-dark-800 overflow-hidden">
@@ -1121,6 +1521,7 @@ function Alerts() {
             className="px-3 py-1.5 bg-dark-950 border border-dark-700 rounded-md text-xs text-zinc-400 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500/50 cursor-pointer"
             value={triggerFilter}
             onChange={(e) => setTriggerFilter(e.target.value)}
+            aria-label="Filter alert history"
           >
             <option value="all">All Alerts</option>
             <option value="unacknowledged">Unacknowledged Only</option>

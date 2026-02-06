@@ -45,53 +45,7 @@ Deploy it as a drop-in OAI-compatible proxy. Point SillyTavern, Open WebUI, Chat
 
 - **Alert System** — Six alert types (threshold, rate, session_threat, access_pattern, config_change, repeat_block) with real-time WebSocket notifications to your dashboard.
 
-## Architecture
-
-```mermaid
-flowchart LR
-    subgraph Clients [" "]
-        direction TB
-        A1["💬 Chat Client\nSillyTavern / Open WebUI"]
-        A2["📊 Dashboard"]
-    end
-
-    subgraph PG ["PooGuard Stack"]
-        direction TB
-
-        subgraph BE ["Backend · Node.js :3001"]
-            direction LR
-            PROXY["/v1 Proxy"]
-            API["/api Routes"]
-            MW["Middleware\nCSRF · Rate Limit · Egress"]
-            WS["Socket.IO"]
-        end
-
-        subgraph MS ["Model Service · FastAPI :8000"]
-            direction LR
-            NORM["Normalizer\nbase64 · hex · homoglyphs"]
-            INF["Threat Classifier\ngpt-oss-safeguard-20b"]
-            SEM["Semantic Similarity\n121 attack patterns"]
-        end
-
-        DB[(PostgreSQL)]
-        RD[(Redis)]
-    end
-
-    LLM["🤖 Upstream LLM"]
-
-    A1 -->|"Bearer sk-pg-*"| PROXY
-    A2 -->|JWT| API
-    PROXY & API --> MW
-    MW -->|"/analyze"| NORM
-    NORM --> INF & SEM
-    PROXY -->|"safe"| LLM
-    LLM -->|"response"| PROXY
-    API --> DB
-    API <--> RD
-    RD -.->|"events"| WS -.-> A2
-```
-
-### Request Flow
+## Request Flow
 
 ```
 Request ➜ Auth ➜ Extract ➜ Normalize ➜ Classify ➜ Evaluate ➜ Forward ➜ Upstream LLM

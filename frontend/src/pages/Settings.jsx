@@ -1,91 +1,15 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import ConfirmDialog from '../components/ConfirmDialog';
 
+// Minimal threat type list for Test Analysis rendering
 const THREAT_TYPES = [
-  { key: 'prompt_injection', label: 'Prompt Injection', defaultThreshold: 0.70 },
-  { key: 'jailbreak', label: 'Jailbreak', defaultThreshold: 0.70 },
-  { key: 'pii', label: 'PII Detection', defaultThreshold: 0.70 },
+  { key: 'prompt_injection', label: 'Prompt Injection' },
+  { key: 'jailbreak', label: 'Jailbreak' },
+  { key: 'pii', label: 'PII Detection' },
 ];
-
-const ACTIONS = [
-  { value: 'block', label: 'Block', color: 'red' },
-  { value: 'flag', label: 'Flag', color: 'yellow' },
-  { value: 'allow', label: 'Allow', color: 'green' },
-];
-
-const BORDER_COLORS = {
-  prompt_injection: 'border-l-red-500',
-  jailbreak: 'border-l-amber-500',
-  pii: 'border-l-cyan-500',
-};
-
-// Threshold presets calibrated against 294-example benchmark (Feb 2026).
-// Model scores are bimodal: 0.0 (no threat) or 0.8-0.95 (threat detected).
-// High Security catches partial detections; Balanced catches strong; Low Friction only high-confidence.
-const THRESHOLD_PRESETS = {
-  high_security: {
-    label: 'High Security',
-    description: 'Maximize threat detection. May flag ambiguous inputs.',
-    thresholds: { prompt_injection: 0.40, jailbreak: 0.40, pii: 0.50 },
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-      </svg>
-    ),
-  },
-  balanced: {
-    label: 'Balanced',
-    description: 'Best F1 accuracy (PI=0.79, JB=0.65, PII=0.89, SEM=0.81). Recommended for most deployments.',
-    thresholds: { prompt_injection: 0.70, jailbreak: 0.70, pii: 0.70 },
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-      </svg>
-    ),
-  },
-  low_friction: {
-    label: 'Low Friction',
-    description: 'Minimize false positives (0 FP at these thresholds). Only blocks high-confidence threats.',
-    thresholds: { prompt_injection: 0.90, jailbreak: 0.90, pii: 0.90 },
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    ),
-  },
-  custom: {
-    label: 'Custom',
-    description: 'Manually configured thresholds.',
-    thresholds: null,
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-      </svg>
-    ),
-  },
-};
-
-function getSensitivityLabel(value) {
-  if (value < 0.3) return 'Very sensitive - may produce false positives';
-  if (value < 0.5) return 'Sensitive - balanced detection';
-  if (value < 0.7) return 'Moderate - standard detection';
-  if (value < 0.9) return 'Conservative - fewer false positives';
-  return 'Very conservative - only high-confidence detections';
-}
-
-function getSliderBackground(value) {
-  const percent = value * 100;
-  if (value < 0.4) {
-    return `linear-gradient(to right, #b07d4f 0%, #b07d4f ${percent}%, #352e29 ${percent}%, #352e29 100%)`;
-  }
-  if (value < 0.7) {
-    return `linear-gradient(to right, #b07d4f 0%, #f59e0b ${percent}%, #352e29 ${percent}%, #352e29 100%)`;
-  }
-  return `linear-gradient(to right, #b07d4f 0%, #f59e0b 50%, #ef4444 ${percent}%, #352e29 ${percent}%, #352e29 100%)`;
-}
 
 function getScoreBarColor(score) {
   if (score < 0.3) return 'bg-primary-500';
@@ -109,108 +33,9 @@ function getVerdictBadgeClasses(action) {
   }
 }
 
-// ActionButtonGroup component with keyboard navigation
-function ActionButtonGroup({ threatKey, currentAction, onActionChange, getActionColor }) {
-  const buttonRefs = useRef([]);
-
-  // Handle keyboard navigation with arrow keys
-  const handleKeyDown = useCallback((event, currentIndex) => {
-    let newIndex = currentIndex;
-
-    switch (event.key) {
-      case 'ArrowLeft':
-      case 'ArrowUp':
-        event.preventDefault();
-        newIndex = currentIndex === 0 ? ACTIONS.length - 1 : currentIndex - 1;
-        break;
-      case 'ArrowRight':
-      case 'ArrowDown':
-        event.preventDefault();
-        newIndex = currentIndex === ACTIONS.length - 1 ? 0 : currentIndex + 1;
-        break;
-      case 'Enter':
-      case ' ':
-        event.preventDefault();
-        onActionChange(threatKey, ACTIONS[currentIndex].value);
-        return;
-      case 'Home':
-        event.preventDefault();
-        newIndex = 0;
-        break;
-      case 'End':
-        event.preventDefault();
-        newIndex = ACTIONS.length - 1;
-        break;
-      default:
-        return;
-    }
-
-    // Focus the new button
-    if (buttonRefs.current[newIndex]) {
-      buttonRefs.current[newIndex].focus();
-    }
-  }, [threatKey, onActionChange]);
-
-  return (
-    <div
-      className="flex gap-3"
-      role="radiogroup"
-      aria-label={`Action for ${threatKey}`}
-    >
-      {ACTIONS.map((action, index) => (
-        <button
-          key={action.value}
-          ref={(el) => { buttonRefs.current[index] = el; }}
-          onClick={() => onActionChange(threatKey, action.value)}
-          onKeyDown={(e) => handleKeyDown(e, index)}
-          role="radio"
-          aria-checked={currentAction === action.value}
-          tabIndex={currentAction === action.value ? 0 : -1}
-          className={`flex-1 py-3 px-4 rounded border-2 transition-all duration-200 font-mono text-xs uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-950 ${
-            currentAction === action.value
-              ? getActionColor(action.value)
-              : 'text-dark-500 bg-dark-950 border-dark-700 hover:border-dark-600 hover:text-dark-400'
-          }`}
-        >
-          <div className="flex items-center justify-center gap-2">
-            {action.value === 'block' && (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-              </svg>
-            )}
-            {action.value === 'flag' && (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
-              </svg>
-            )}
-            {action.value === 'allow' && (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            )}
-            {action.label}
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function Settings() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-
-  const [thresholds, setThresholds] = useState({
-    prompt_injection: 0.70,
-    jailbreak: 0.70,
-    pii: 0.70,
-  });
-
-  const [actions, setActions] = useState({
-    prompt_injection: 'block',
-    jailbreak: 'block',
-    pii: 'flag',
-  });
 
   const [modelConfig, setModelConfig] = useState({
     providerType: 'none',
@@ -224,7 +49,6 @@ function Settings() {
   const [connectionTest, setConnectionTest] = useState(null);
 
   const [safeguardModel, setSafeguardModel] = useState('20b');
-  const [selectedPreset, setSelectedPreset] = useState('custom');
 
   const [dataRetentionDays, setDataRetentionDays] = useState(90);
   const [failMode, setFailMode] = useState('open');
@@ -240,7 +64,7 @@ function Settings() {
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeySecret, setNewKeySecret] = useState(null);
   const [keyCopied, setKeyCopied] = useState(false);
-  const [keyToRevoke, setKeyToRevoke] = useState(null);
+  const [showRevokeConfirm, setShowRevokeConfirm] = useState(null);
 
   const proxyEndpoint = useMemo(() => {
     const { protocol, hostname, port } = window.location;
@@ -274,16 +98,6 @@ function Settings() {
 
   useEffect(() => {
     if (config) {
-      setThresholds({
-        prompt_injection: config.thresholds?.promptInjection ?? 0.70,
-        jailbreak: config.thresholds?.jailbreak ?? 0.70,
-        pii: config.thresholds?.pii ?? 0.70,
-      });
-      setActions({
-        prompt_injection: config.actions?.promptInjection ?? 'block',
-        jailbreak: config.actions?.jailbreak ?? 'block',
-        pii: config.actions?.pii ?? 'flag',
-      });
       if (config.modelConfig) {
         setModelConfig({
           providerType: config.modelConfig.providerType || 'none',
@@ -297,36 +111,16 @@ function Settings() {
       setDataRetentionDays(config.dataRetentionDays ?? 90);
       setFailMode(config.failMode || 'open');
       setAnalysisMode(config.analysisMode || 'sync');
-      // Detect if current thresholds match a known preset
-      const loadedThresholds = {
-        prompt_injection: config.thresholds?.promptInjection ?? 0.70,
-        jailbreak: config.thresholds?.jailbreak ?? 0.70,
-        pii: config.thresholds?.pii ?? 0.70,
-      };
-      const matchedPreset = Object.entries(THRESHOLD_PRESETS).find(([key, preset]) => {
-        if (!preset.thresholds) return false;
-        return Object.keys(preset.thresholds).every(
-          (k) => Math.abs((preset.thresholds[k] || 0) - (loadedThresholds[k] || 0)) < 0.005
-        );
-      });
-      setSelectedPreset(matchedPreset ? matchedPreset[0] : 'custom');
       setHasChanges(false);
     }
   }, [config]);
 
   const saveMutation = useMutation({
-    mutationFn: async ({ thresholds, actions, modelConfig: mc, safeguardModel: sm, dataRetentionDays: drd, failMode: fm, analysisMode: am }) => {
+    mutationFn: async ({ modelConfig: mc, safeguardModel: sm, dataRetentionDays: drd, failMode: fm, analysisMode: am }) => {
       const payload = {
-        thresholds: {
-          promptInjection: thresholds.prompt_injection,
-          jailbreak: thresholds.jailbreak,
-          pii: thresholds.pii,
-        },
-        actions: {
-          promptInjection: actions.prompt_injection,
-          jailbreak: actions.jailbreak,
-          pii: actions.pii,
-        },
+        // Pass through detection rules unchanged from saved config
+        thresholds: config?.thresholds || { promptInjection: 0.70, jailbreak: 0.70, pii: 0.70 },
+        actions: config?.actions || { promptInjection: 'block', jailbreak: 'block', pii: 'flag' },
         modelConfig: {
           providerType: mc.providerType,
           endpointUrl: mc.endpointUrl,
@@ -401,7 +195,7 @@ function Settings() {
       return response.data;
     },
     onSuccess: () => {
-      setKeyToRevoke(null);
+      setShowRevokeConfirm(null);
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
     },
   });
@@ -417,28 +211,8 @@ function Settings() {
     },
   });
 
-  const handlePresetChange = (presetKey) => {
-    setSelectedPreset(presetKey);
-    const preset = THRESHOLD_PRESETS[presetKey];
-    if (preset?.thresholds) {
-      setThresholds({ ...preset.thresholds });
-      setHasChanges(true);
-    }
-  };
-
-  const handleThresholdChange = (key, value) => {
-    setThresholds((prev) => ({ ...prev, [key]: value }));
-    setSelectedPreset('custom');
-    setHasChanges(true);
-  };
-
-  const handleActionChange = (key, value) => {
-    setActions((prev) => ({ ...prev, [key]: value }));
-    setHasChanges(true);
-  };
-
   const handleSave = () => {
-    saveMutation.mutate({ thresholds, actions, modelConfig, safeguardModel, dataRetentionDays, failMode, analysisMode });
+    saveMutation.mutate({ modelConfig, safeguardModel, dataRetentionDays, failMode, analysisMode });
   };
 
   const handleModelConfigChange = (field, value) => {
@@ -453,22 +227,20 @@ function Settings() {
     }
   };
 
-  const getActionColor = (action) => {
-    switch (action) {
-      case 'block':
-        return 'text-red-400 bg-red-500/10 border-red-500/40';
-      case 'flag':
-        return 'text-amber-400 bg-amber-500/10 border-amber-500/40';
-      case 'allow':
-        return 'text-primary-400 bg-primary-500/10 border-primary-500/40';
-      default:
-        return 'text-dark-400 bg-dark-950 border-dark-700';
-    }
-  };
-
   const wouldBeBlocked = (score, threatType) => {
-    const threshold = thresholds[threatType] || 0.5;
-    const action = actions[threatType] || 'allow';
+    // Read thresholds/actions from saved config
+    const thresholdMap = {
+      prompt_injection: config?.thresholds?.promptInjection ?? 0.70,
+      jailbreak: config?.thresholds?.jailbreak ?? 0.70,
+      pii: config?.thresholds?.pii ?? 0.70,
+    };
+    const actionMap = {
+      prompt_injection: config?.actions?.promptInjection ?? 'block',
+      jailbreak: config?.actions?.jailbreak ?? 'block',
+      pii: config?.actions?.pii ?? 'flag',
+    };
+    const threshold = thresholdMap[threatType] || 0.5;
+    const action = actionMap[threatType] || 'allow';
     if (score >= threshold) {
       return action;
     }
@@ -515,7 +287,7 @@ function Settings() {
             Firewall Settings
           </h1>
           <p className="text-dark-500 mt-1 text-sm">
-            Configure threat detection thresholds, response actions, and model endpoints
+            Configure model endpoints, proxy keys, and compliance settings
           </p>
         </div>
         <button
@@ -577,142 +349,24 @@ function Settings() {
         </div>
       )}
 
-      {/* Two-column grid on wide screens */}
+      {/* Two-column grid */}
       <div className="grid lg:grid-cols-2 gap-6">
 
-        {/* LEFT COLUMN — Threat Detection Rules */}
-        <div className="space-y-6">
-          {/* Combined Threshold + Action per threat type */}
-          {/* Threshold Presets */}
-          <div className="space-y-0">
-            <div className="px-1 mb-3">
-              <h2 className="text-xs font-mono uppercase tracking-widest text-dark-400 mb-1">
-                Threshold Preset
-              </h2>
-              <p className="text-dark-500 text-xs">
-                Choose a preset profile or configure thresholds manually below.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {Object.entries(THRESHOLD_PRESETS).map(([key, preset]) => (
-                <button
-                  key={key}
-                  onClick={() => handlePresetChange(key)}
-                  className={`p-3 rounded border-2 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-950 ${
-                    selectedPreset === key
-                      ? 'border-primary-500/40 bg-primary-500/5'
-                      : 'border-dark-700 bg-dark-950 hover:border-dark-600'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`${selectedPreset === key ? 'text-primary-400' : 'text-dark-400'}`}>
-                      {preset.icon}
-                    </span>
-                    <span className={`font-mono text-xs font-bold uppercase tracking-wider ${
-                      selectedPreset === key ? 'text-primary-400' : 'text-dark-300'
-                    }`}>
-                      {preset.label}
-                    </span>
-                  </div>
-                  <p className={`text-[10px] font-mono leading-relaxed ${
-                    selectedPreset === key ? 'text-dark-400' : 'text-dark-500'
-                  }`}>
-                    {preset.description}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-0">
-            <div className="px-1 mb-3">
-              <h2 className="text-xs font-mono uppercase tracking-widest text-dark-400 mb-1">
-                Detection Rules
-              </h2>
-              <p className="text-dark-500 text-xs">
-                Threshold sensitivity and response action per threat type.
-                {selectedPreset !== 'custom' && (
-                  <span className="ml-1 text-primary-400">
-                    Using {THRESHOLD_PRESETS[selectedPreset]?.label} preset. Adjust sliders to customize.
-                  </span>
-                )}
-              </p>
-            </div>
-            <div className="space-y-3">
-              {THREAT_TYPES.map((threat) => {
-                const value = Number(thresholds[threat.key] ?? threat.defaultThreshold);
-                return (
-                  <div
-                    key={threat.key}
-                    className={`bg-dark-900 border border-dark-700 border-l-4 ${BORDER_COLORS[threat.key]} rounded p-5 space-y-4`}
-                  >
-                    {/* Threshold section */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <label className="text-xs font-mono uppercase tracking-widest text-dark-400">
-                          {threat.label}
-                        </label>
-                        <span className="text-xl font-mono text-dark-100 tabular-nums">
-                          {value.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-mono text-dark-600 w-6 text-right">0.0</span>
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.01"
-                          value={value}
-                          onChange={(e) => handleThresholdChange(threat.key, parseFloat(e.target.value))}
-                          className="flex-1 h-1.5 rounded-full appearance-none cursor-pointer slider"
-                          style={{ background: getSliderBackground(value) }}
-                          aria-valuemin={0}
-                          aria-valuemax={1}
-                          aria-valuenow={value}
-                          aria-valuetext={`${(value * 100).toFixed(0)}%`}
-                          aria-label={`${threat.label} detection threshold`}
-                        />
-                        <span className="text-[10px] font-mono text-dark-600 w-6">1.0</span>
-                      </div>
-                      <p className="text-[11px] text-dark-500 mt-1.5 font-mono">
-                        {getSensitivityLabel(value)}
-                      </p>
-                    </div>
-
-                    {/* Action section */}
-                    <div className="pt-3 border-t border-dark-800">
-                      <label
-                        id={`action-label-${threat.key}`}
-                        className="text-[10px] font-mono uppercase tracking-widest text-dark-500 block mb-2"
-                      >
-                        Response Action
-                      </label>
-                      <ActionButtonGroup
-                        threatKey={threat.key}
-                        currentAction={actions[threat.key]}
-                        onActionChange={handleActionChange}
-                        getActionColor={getActionColor}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN — Model Configuration + Test */}
+        {/* LEFT COLUMN — Proxy & Model Config */}
         <div className="space-y-6">
 
           {/* Proxy Endpoint */}
-          <div className="bg-dark-900 border border-dark-700 rounded p-4 flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-[10px] font-mono uppercase tracking-widest text-dark-500 mb-1">
+          <div className="space-y-0">
+            <div className="px-1 mb-3">
+              <h2 className="text-xs font-mono uppercase tracking-widest text-dark-400 mb-1">
                 Proxy Endpoint
+              </h2>
+              <p className="text-dark-500 text-xs">
+                OAI-compatible endpoint for external clients like SillyTavern or Open WebUI.
               </p>
-              <code className="text-sm font-mono text-dark-200 break-all">{proxyEndpoint}</code>
             </div>
+            <div className="bg-dark-900 border border-dark-700 rounded p-5 flex items-center justify-between gap-4">
+              <code className="text-sm font-mono text-dark-200 break-all">{proxyEndpoint}</code>
             <button
               onClick={() => {
                 navigator.clipboard.writeText(proxyEndpoint);
@@ -733,6 +387,7 @@ function Settings() {
                 </svg>
               )}
             </button>
+            </div>
           </div>
 
           {/* Proxy API Keys */}
@@ -835,7 +490,7 @@ function Settings() {
                         </div>
                       </div>
                       <button
-                        onClick={() => setKeyToRevoke(k)}
+                        onClick={() => setShowRevokeConfirm(k)}
                         disabled={revokeKeyMutation.isPending}
                         className="shrink-0 px-3 py-1.5 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50 font-mono text-xs uppercase tracking-wider transition-all duration-200 disabled:opacity-40"
                       >
@@ -851,17 +506,6 @@ function Settings() {
               )}
             </div>
           </div>
-
-          {/* Revoke key confirmation */}
-          <ConfirmDialog
-            isOpen={!!keyToRevoke}
-            onClose={() => setKeyToRevoke(null)}
-            onConfirm={() => keyToRevoke && revokeKeyMutation.mutate(keyToRevoke.id)}
-            title="Revoke API Key"
-            message={`Revoke "${keyToRevoke?.name}"? Any client using this key will immediately lose access.`}
-            confirmText="Revoke"
-            variant="danger"
-          />
 
           {/* Upstream Model */}
           <div className="space-y-0">
@@ -1068,6 +712,11 @@ function Settings() {
               )}
             </div>
           </div>
+
+        </div>{/* end left column */}
+
+        {/* RIGHT COLUMN — System Behavior & Testing */}
+        <div className="space-y-6">
 
           {/* Safeguard Model */}
           <div className="space-y-0">
@@ -1338,7 +987,12 @@ function Settings() {
                     {THREAT_TYPES.map((threat) => {
                       const score = testResult.threatScores?.[threat.key] ?? 0;
                       const resultAction = wouldBeBlocked(score, threat.key);
-                      const threshold = Number(thresholds[threat.key] || threat.defaultThreshold);
+                      const thresholdMap = {
+                        prompt_injection: config?.thresholds?.promptInjection ?? 0.70,
+                        jailbreak: config?.thresholds?.jailbreak ?? 0.70,
+                        pii: config?.thresholds?.pii ?? 0.70,
+                      };
+                      const threshold = Number(thresholdMap[threat.key] || 0.70);
                       const isAboveThreshold = score >= threshold;
 
                       return (
@@ -1420,7 +1074,7 @@ function Settings() {
                     </div>
 
                     <p className="text-[10px] text-dark-600 font-mono pt-1">
-                      // dry-run only -- not logged or processed by the firewall
+                      {'// dry-run only -- not logged or processed by the firewall'}
                     </p>
                   </div>
                 </div>
@@ -1439,9 +1093,21 @@ function Settings() {
           handleSave();
         }}
         title="Save Configuration"
-        message="This will update firewall rules for all incoming requests. Changes take effect immediately."
+        message="This will update model and compliance settings. Changes take effect immediately."
         variant="warning"
         confirmText="Save Changes"
+      />
+
+      <ConfirmDialog
+        isOpen={!!showRevokeConfirm}
+        onClose={() => setShowRevokeConfirm(null)}
+        onConfirm={() => {
+          revokeKeyMutation.mutate(showRevokeConfirm.id);
+        }}
+        title="Revoke API Key"
+        message={`Revoke "${showRevokeConfirm?.name || 'this key'}"? Any clients using it will immediately lose access.`}
+        variant="danger"
+        confirmText="Revoke Key"
       />
     </div>
   );

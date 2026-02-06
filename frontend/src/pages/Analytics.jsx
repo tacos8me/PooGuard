@@ -403,10 +403,12 @@ function Analytics() {
                   stroke={CHART_GRID_COLOR}
                   tick={CHART_AXIS_STYLE}
                   tickFormatter={formatHourLabel}
+                  label={{ value: 'Hour', position: 'insideBottomRight', offset: -5, style: { fill: '#6b6b6b', fontFamily: 'JetBrains Mono, Fira Code, monospace', fontSize: 10 } }}
                 />
                 <YAxis
                   stroke={CHART_GRID_COLOR}
                   tick={CHART_AXIS_STYLE}
+                  label={{ value: 'Requests', angle: -90, position: 'insideLeft', offset: 10, style: { fill: '#6b6b6b', fontFamily: 'JetBrains Mono, Fira Code, monospace', fontSize: 10 } }}
                 />
                 <Tooltip content={<BarChartTooltip formatLabel={formatHourLabel} />} />
                 <Bar dataKey="total" name="Total" fill="#b07d4f" radius={[2, 2, 0, 0]} />
@@ -491,16 +493,16 @@ function Analytics() {
                           </p>
                         </td>
                         <td className="py-3 px-5">
-                          <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-3">
                             {(log.threat_scores || log.scores) && (
                               <>
-                                <span className={clsx('text-[10px] font-mono', getScoreColor(log.threat_scores?.prompt_injection || log.scores?.injection || 0))}>
+                                <span className={clsx('text-[10px] font-mono whitespace-nowrap', getScoreColor(log.threat_scores?.prompt_injection || log.scores?.injection || 0))}>
                                   INJ {((log.threat_scores?.prompt_injection || log.scores?.injection || 0) * 100).toFixed(0)}%
                                 </span>
-                                <span className={clsx('text-[10px] font-mono', getScoreColor(log.threat_scores?.jailbreak || log.scores?.jailbreak || 0))}>
-                                  JB  {((log.threat_scores?.jailbreak || log.scores?.jailbreak || 0) * 100).toFixed(0)}%
+                                <span className={clsx('text-[10px] font-mono whitespace-nowrap', getScoreColor(log.threat_scores?.jailbreak || log.scores?.jailbreak || 0))}>
+                                  JB {((log.threat_scores?.jailbreak || log.scores?.jailbreak || 0) * 100).toFixed(0)}%
                                 </span>
-                                <span className={clsx('text-[10px] font-mono', getScoreColor(log.threat_scores?.pii || log.scores?.pii || 0))}>
+                                <span className={clsx('text-[10px] font-mono whitespace-nowrap', getScoreColor(log.threat_scores?.pii || log.scores?.pii || 0))}>
                                   PII {((log.threat_scores?.pii || log.scores?.pii || 0) * 100).toFixed(0)}%
                                 </span>
                               </>
