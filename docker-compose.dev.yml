@@ -1,0 +1,47 @@
+# Development override - use with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  model-service:
+    environment:
+      - SAFEGUARD_MODEL_SIZE=20b
+      - MODEL_NAME=openai/gpt-oss-safeguard-20b
+    volumes:
+      - ./model-service/main.py:/app/main.py
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    environment:
+      - NODE_ENV=development
+      - NODE_OPTIONS=--dns-result-order=ipv4first --max-old-space-size=512
+      - LOG_FILE_ENABLED=false
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/migrations:/app/migrations
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/vite.config.js:/app/vite.config.js
+      - ./frontend/tailwind.config.js:/app/tailwind.config.js
+      - ./frontend/postcss.config.js:/app/postcss.config.js
+      - ./frontend/index.html:/app/index.html
+    ports: !override
+      - "5173:3000"
+    environment:
+      - VITE_API_URL=http://backend:3001
+      - NODE_OPTIONS=--dns-result-order=ipv4first
+    command: npm run dev
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"

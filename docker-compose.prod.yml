@@ -1,0 +1,36 @@
+# Production TLS override - use with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Requires TLS certificates in ./certs directory (or set TLS_CERT_PATH environment variable)
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - NGINX_SSL_ENABLED=true
+      - NGINX_SERVER_NAME=${NGINX_SERVER_NAME:-localhost}
+    volumes:
+      - ${TLS_CERT_PATH:-./certs}:/etc/nginx/ssl:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # In production, don't expose internal services directly
+  model-service:
+    ports: []  # Remove external port mapping
+
+  backend:
+    ports: []  # Remove external port mapping
+    environment:
+      - NODE_ENV=production
+      - SECURE_COOKIES=true
+
+  postgres:
+    ports: []  # Remove external port mapping
+
+  redis:
+    ports: []  # Remove external port mapping

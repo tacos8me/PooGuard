@@ -1,0 +1,175 @@
+services:
+  model-service:
+    build:
+      context: ./model-service
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_NAME=${MODEL_NAME:-openai/gpt-oss-safeguard-20b}
+      - SAFEGUARD_MODEL_SIZE=${SAFEGUARD_MODEL_SIZE:-20b}
+      - HF_TOKEN=${HF_TOKEN}
+      - MODEL_SERVICE_API_KEY=${MODEL_SERVICE_API_KEY}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      # CUDA 12.8 requires R570+ driver for Blackwell/SM120
+      - CUDA_MODULE_LOADING=LAZY
+    volumes:
+      - model-cache:/home/appuser/.cache/huggingface
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, compute, utility]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - clawguard-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=postgres://clawguard:${DB_PASSWORD}@postgres:5432/clawguard
+      - REDIS_URL=redis://redis:6379
+      - MODEL_SERVICE_URL=http://model-service:8000
+      - MODEL_SERVICE_API_KEY=${MODEL_SERVICE_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - LOG_FILE_ENABLED=true
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      model-service:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - clawguard-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    volumes:
+      # TLS certificates (mount in production)
+      - ${TLS_CERT_PATH:-./certs}:/etc/nginx/ssl:ro
+    networks:
+      - clawguard-net
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=clawguard
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=clawguard
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - backups:/backups
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clawguard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - clawguard-net
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --appendfsync everysec --save 900 1 --save 300 10 --save 60 10000
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - clawguard-net
+
+  # On-demand backup service - run with: docker compose run --rm backup
+  backup:
+    image: postgres:16-alpine
+    volumes:
+      - backups:/backups
+    environment:
+      - PGHOST=postgres
+      - PGUSER=clawguard
+      - PGPASSWORD=${DB_PASSWORD}
+      - PGDATABASE=clawguard
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        TIMESTAMP=$$(date +%Y%m%d_%H%M%S)
+        BACKUP_FILE="/backups/clawguard_backup_$${TIMESTAMP}.sql.gz"
+        echo "Creating backup: $${BACKUP_FILE}"
+        pg_dump | gzip > "$${BACKUP_FILE}"
+        echo "Backup completed: $$(du -h $${BACKUP_FILE})"
+        echo ""
+        echo "Recent backups:"
+        ls -lht /backups/*.sql.gz 2>/dev/null | head -5
+    networks:
+      - clawguard-net
+    profiles:
+      - backup
+
+networks:
+  clawguard-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    name: clawguard-postgres-data
+  redis-data:
+    name: clawguard-redis-data
+  model-cache:
+    name: clawguard-model-cache
+  backups:
+    name: clawguard-backups

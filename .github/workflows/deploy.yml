@@ -1,0 +1,96 @@
+name: Deploy Pipeline
+
+# This is a stub for future CD implementation
+# Uncomment and configure when ready for deployment
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    branches: [main]
+    types:
+      - completed
+
+  # Manual trigger for deployments
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  # TODO: Implement deployment jobs
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Placeholder - Login to Container Registry
+        run: echo "TODO - Configure container registry login"
+        # uses: docker/login-action@v3
+        # with:
+        #   registry: ${{ env.REGISTRY }}
+        #   username: ${{ github.actor }}
+        #   password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Placeholder - Push Docker images
+        run: echo "TODO - Push images to registry"
+        # Implement image push logic
+
+      - name: Placeholder - Deploy to staging
+        run: echo "TODO - Deploy to staging environment"
+        # Options:
+        # - Kubernetes deployment
+        # - Docker Compose on remote server
+        # - Cloud provider deployment (AWS ECS, Azure Container Apps, etc.)
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: ${{ github.event.inputs.environment == 'production' }}
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Placeholder - Login to Container Registry
+        run: echo "TODO - Configure container registry login"
+
+      - name: Placeholder - Deploy to production
+        run: echo "TODO - Deploy to production environment"
+        # Implement production deployment with:
+        # - Blue/green deployment
+        # - Canary releases
+        # - Rollback capability
+
+  # Notification job (optional)
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: always()
+
+    steps:
+      - name: Placeholder - Send notification
+        run: echo "TODO - Send deployment notification"
+        # Options:
+        # - Slack notification
+        # - Discord webhook
+        # - Email notification
+        # - GitHub deployment status
