@@ -285,7 +285,7 @@ const getElevatedSessions = async (minScore = 0.5) => {
 
     // Scan for all session keys
     const keys = [];
-    let cursor = '0';
+    let cursor = 0;
     do {
       const result = await redis.scan(cursor, {
         MATCH: `${SESSION_THREAT_PREFIX}*`,
@@ -293,7 +293,7 @@ const getElevatedSessions = async (minScore = 0.5) => {
       });
       cursor = result.cursor;
       keys.push(...result.keys);
-    } while (cursor !== '0');
+    } while (cursor !== 0);
 
     // Get data for each session and filter by score
     const sessions = [];

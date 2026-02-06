@@ -97,7 +97,7 @@ const revokeAllUserRefreshTokens = async (userId) => {
     const pattern = `${REFRESH_TOKEN_PREFIX}*`;
 
     // Scan for all refresh tokens and delete those belonging to this user
-    let cursor = '0';
+    let cursor = 0;
     let deletedCount = 0;
 
     do {
@@ -112,7 +112,7 @@ const revokeAllUserRefreshTokens = async (userId) => {
           deletedCount++;
         }
       }
-    } while (cursor !== '0');
+    } while (cursor !== 0);
 
     logger.info('All user refresh tokens revoked', { userId, deletedCount });
     return deletedCount;

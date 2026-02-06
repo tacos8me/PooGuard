@@ -394,7 +394,7 @@ class RequestFingerprinter {
 
     // Scan for other fingerprints (limited scan for performance)
     const similar = [];
-    let cursor = '0';
+    let cursor = 0;
 
     do {
       const result = await this.redis.scan(cursor, {
@@ -422,7 +422,7 @@ class RequestFingerprinter {
           });
         }
       }
-    } while (cursor !== '0' && similar.length < 10);
+    } while (cursor !== 0 && similar.length < 10);
 
     return similar;
   }
@@ -436,7 +436,7 @@ class RequestFingerprinter {
     }
 
     try {
-      let cursor = '0';
+      let cursor = 0;
       let activeCount = 0;
       let suspiciousCount = 0;
 
@@ -454,7 +454,7 @@ class RequestFingerprinter {
             suspiciousCount++;
           }
         }
-      } while (cursor !== '0');
+      } while (cursor !== 0);
 
       return {
         active: activeCount,
