@@ -28,7 +28,7 @@ const BORDER_COLORS = {
 const THRESHOLD_PRESETS = {
   high_security: {
     label: 'High Security',
-    description: 'Maximize threat detection (F1: PI=0.91, JB=0.81, PII=0.87). May flag ambiguous inputs.',
+    description: 'Maximize threat detection. May flag ambiguous inputs.',
     thresholds: { prompt_injection: 0.40, jailbreak: 0.40, pii: 0.50 },
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,7 +38,7 @@ const THRESHOLD_PRESETS = {
   },
   balanced: {
     label: 'Balanced',
-    description: 'Best F1 accuracy (PI=0.83, JB=0.72, PII=0.88). Recommended for most deployments.',
+    description: 'Best F1 accuracy (PI=0.79, JB=0.65, PII=0.89, SEM=0.81). Recommended for most deployments.',
     thresholds: { prompt_injection: 0.70, jailbreak: 0.70, pii: 0.70 },
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

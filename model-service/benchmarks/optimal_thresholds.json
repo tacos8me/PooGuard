@@ -1,71 +1,52 @@
 {
   "presets": {
     "high_security": {
-      "prompt_injection": 0.40,
-      "jailbreak": 0.40,
-      "pii": 0.50,
-      "semantic_similarity": 0.24
+      "prompt_injection": 0.0,
+      "jailbreak": 0.0,
+      "pii": 0.0,
+      "semantic_similarity": 0.28
     },
     "balanced": {
-      "prompt_injection": 0.70,
-      "jailbreak": 0.70,
-      "pii": 0.70,
-      "semantic_similarity": 0.34
+      "prompt_injection": 0.81,
+      "jailbreak": 0.81,
+      "pii": 0.71,
+      "semantic_similarity": 0.41
     },
     "low_friction": {
-      "prompt_injection": 0.90,
-      "jailbreak": 0.90,
-      "pii": 0.90,
-      "semantic_similarity": 0.46
+      "prompt_injection": 0.96,
+      "jailbreak": 0.95,
+      "pii": 0.96,
+      "semantic_similarity": 0.5
     }
   },
   "per_category": {
     "prompt_injection": {
-      "max_f1_threshold": 0.86,
-      "max_f1_score": 0.831,
-      "youden_j_threshold": 0.51,
-      "precision_95_threshold": null,
-      "recall_95_threshold": 0.0,
-      "notes": "Bimodal: scores are 0.0 or 0.8-0.95. 5/77 threats scored 0.0 (missed). 0/217 clean scored >0."
+      "max_f1_threshold": 0.81,
+      "max_f1_score": 0.7904761904761904,
+      "youden_j_threshold": 0.81,
+      "precision_95_threshold": 0.96,
+      "recall_95_threshold": 0.0
     },
     "jailbreak": {
       "max_f1_threshold": 0.81,
-      "max_f1_score": 0.717,
-      "youden_j_threshold": 0.81,
+      "max_f1_score": 0.6535947712418301,
+      "youden_j_threshold": 0.31,
       "precision_95_threshold": null,
-      "recall_95_threshold": 0.0,
-      "notes": "Bimodal: scores are 0.0 or 0.8-0.95. 12/67 threats scored 0.0 (missed). 0/227 clean scored >0."
+      "recall_95_threshold": 0.0
     },
     "pii": {
-      "max_f1_threshold": 0.86,
-      "max_f1_score": 0.883,
-      "youden_j_threshold": 0.01,
+      "max_f1_threshold": 0.71,
+      "max_f1_score": 0.891566265060241,
+      "youden_j_threshold": 0.71,
       "precision_95_threshold": 0.96,
-      "recall_95_threshold": 0.0,
-      "notes": "Bimodal: scores are 0.0 or 0.8-0.99. 10/76 threats scored 0.0 (missed). 5/218 clean false positives (PII=0.9-0.95 on number patterns)."
+      "recall_95_threshold": 0.0
     },
     "semantic_similarity": {
-      "max_f1_threshold": 0.34,
-      "max_f1_score": 0.863,
-      "youden_j_threshold": 0.34,
-      "precision_95_threshold": 0.46,
-      "recall_95_threshold": 0.24,
-      "notes": "Continuous distribution (embedding cosine similarity). Clean: 0.06-0.56. Attacks: 0.12-0.78."
+      "max_f1_threshold": 0.4074368476867676,
+      "max_f1_score": 0.8135593220338982,
+      "youden_j_threshold": 0.4164142906665802,
+      "precision_95_threshold": 0.5043658018112183,
+      "recall_95_threshold": 0.27858754992485046
     }
-  },
-  "benchmark_summary": {
-    "total_examples": 294,
-    "valid_examples": 292,
-    "skipped": 2,
-    "errors": 0,
-    "false_positives": 5,
-    "false_negatives": 20,
-    "mean_latency_ms": 3647,
-    "p50_latency_ms": 3175,
-    "p95_latency_ms": 7037,
-    "model": "openai/gpt-oss-safeguard-20b",
-    "quantization": "MXFP4",
-    "gpu": "RTX 5090 (32GB)",
-    "date": "2026-02-06"
   }
 }

@@ -9,6 +9,7 @@ venv/
 .env
 .env.local
 .env.*.local
+.env.test
 
 # Build outputs
 dist/
@@ -31,8 +32,14 @@ logs/
 
 # Testing
 coverage/
+.coverage
 .pytest_cache/
 .nyc_output/
+
+# Debug artifacts
+cookies*.txt
+csrf_resp.txt
+nul
 
 # Model cache (large files)
 *.bin
