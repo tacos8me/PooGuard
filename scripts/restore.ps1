@@ -22,7 +22,7 @@ if ($Help) {
     Write-Host "  -Help               Show this help message"
     Write-Host ""
     Write-Host "Examples:"
-    Write-Host "  .\restore.ps1 -BackupFile .\backups\pooguard_backup_20240101_120000.sql.gz"
+    Write-Host "  .\restore.ps1 -BackupFile .\backups\clawguard_backup_20240101_120000.sql.gz"
     Write-Host "  .\restore.ps1 -BackupFile backup.sql.gz -Local -Yes"
     exit 0
 }
@@ -42,8 +42,8 @@ if (-not (Test-Path $BackupFile)) {
 }
 
 # Configuration
-$DbName = "pooguard"
-$DbUser = "pooguard"
+$DbName = "clawguard"
+$DbUser = "clawguard"
 $DbHost = "localhost"
 $DbPort = "5432"
 $DockerService = "postgres"
@@ -74,7 +74,7 @@ if (-not $Yes) {
 # Decompress if needed
 $SqlFile = $BackupFile
 if ($IsCompressed) {
-    $SqlFile = Join-Path $env:TEMP "pooguard_restore_temp.sql"
+    $SqlFile = Join-Path $env:TEMP "clawguard_restore_temp.sql"
     Write-Host "Decompressing backup..."
     try {
         $inputStream = [System.IO.File]::OpenRead($BackupFile)

@@ -14,8 +14,8 @@ set -e
 # Default configuration
 BACKUP_DIR="./backups"
 USE_DOCKER=true
-DB_NAME="pooguard"
-DB_USER="pooguard"
+DB_NAME="clawguard"
+DB_USER="clawguard"
 DB_HOST="localhost"
 DB_PORT="5432"
 DOCKER_SERVICE="postgres"
@@ -70,7 +70,7 @@ mkdir -p "$BACKUP_DIR"
 
 # Generate timestamp for filename
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/pooguard_backup_${TIMESTAMP}.sql.gz"
+BACKUP_FILE="$BACKUP_DIR/clawguard_backup_${TIMESTAMP}.sql.gz"
 
 echo "PooGuard PostgreSQL Backup"
 echo "==========================="

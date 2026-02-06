@@ -341,7 +341,7 @@ The simplest way to create a backup is using the provided script:
 ./scripts/backup.sh -l
 ```
 
-The script will create a compressed backup file named `pooguard_backup_YYYYMMDD_HHMMSS.sql.gz`.
+The script will create a compressed backup file named `clawguard_backup_YYYYMMDD_HHMMSS.sql.gz`.
 
 #### Using Docker Compose Directly
 
@@ -349,13 +349,13 @@ You can also run backups directly with Docker Compose:
 
 ```bash
 # Quick one-liner backup
-docker compose exec -T postgres pg_dump -U pooguard pooguard | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
+docker compose exec -T postgres pg_dump -U clawguard clawguard | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
 
 # Using the backup service (stores in Docker volume)
 docker compose run --rm backup
 ```
 
-The backup service stores backups in the `pooguard-backups` Docker volume, which is also mounted at `/backups` in the postgres container.
+The backup service stores backups in the `clawguard-backups` Docker volume, which is also mounted at `/backups` in the postgres container.
 
 #### Copying Backups from Docker Volume
 
@@ -366,7 +366,7 @@ To copy backups from the Docker volume to your local filesystem:
 docker compose exec postgres ls -la /backups
 
 # Copy a specific backup to local directory
-docker compose cp postgres:/backups/pooguard_backup_20240101_120000.sql.gz ./backups/
+docker compose cp postgres:/backups/clawguard_backup_20240101_120000.sql.gz ./backups/
 
 # Copy all backups
 docker compose exec postgres sh -c 'cat /backups/*.sql.gz' > all_backups.tar.gz
@@ -383,10 +383,10 @@ Set up automated daily backups using cron:
 crontab -e
 
 # Add daily backup at 2:00 AM
-0 2 * * * cd /path/to/pooguard && ./scripts/backup.sh -o /var/backups/pooguard >> /var/log/pooguard-backup.log 2>&1
+0 2 * * * cd /path/to/pooguard && ./scripts/backup.sh -o /var/backups/clawguard >> /var/log/clawguard-backup.log 2>&1
 
 # Add weekly backup on Sundays at 3:00 AM
-0 3 * * 0 cd /path/to/pooguard && ./scripts/backup.sh -o /var/backups/pooguard/weekly >> /var/log/pooguard-backup.log 2>&1
+0 3 * * 0 cd /path/to/pooguard && ./scripts/backup.sh -o /var/backups/clawguard/weekly >> /var/log/clawguard-backup.log 2>&1
 ```
 
 #### Using Docker Compose Backup Service
@@ -395,7 +395,7 @@ For a Docker-native approach, you can use a cron container or scheduled task:
 
 ```bash
 # Run backup using Docker Compose (good for scheduled tasks)
-0 2 * * * cd /path/to/pooguard && docker compose run --rm backup >> /var/log/pooguard-backup.log 2>&1
+0 2 * * * cd /path/to/pooguard && docker compose run --rm backup >> /var/log/clawguard-backup.log 2>&1
 ```
 
 #### Using Systemd Timer (Linux)
@@ -403,7 +403,7 @@ For a Docker-native approach, you can use a cron container or scheduled task:
 Create a systemd service and timer for more robust scheduling:
 
 ```ini
-# /etc/systemd/system/pooguard-backup.service
+# /etc/systemd/system/clawguard-backup.service
 [Unit]
 Description=PooGuard Database Backup
 After=docker.service
@@ -411,7 +411,7 @@ After=docker.service
 [Service]
 Type=oneshot
 WorkingDirectory=/path/to/pooguard
-ExecStart=/path/to/pooguard/scripts/backup.sh -o /var/backups/pooguard
+ExecStart=/path/to/pooguard/scripts/backup.sh -o /var/backups/clawguard
 User=root
 
 [Install]
@@ -419,7 +419,7 @@ WantedBy=multi-user.target
 ```
 
 ```ini
-# /etc/systemd/system/pooguard-backup.timer
+# /etc/systemd/system/clawguard-backup.timer
 [Unit]
 Description=Run PooGuard backup daily
 
@@ -434,8 +434,8 @@ WantedBy=timers.target
 Enable the timer:
 
 ```bash
-sudo systemctl enable pooguard-backup.timer
-sudo systemctl start pooguard-backup.timer
+sudo systemctl enable clawguard-backup.timer
+sudo systemctl start clawguard-backup.timer
 ```
 
 #### Windows Task Scheduler
@@ -454,10 +454,10 @@ For Windows deployments, use Task Scheduler:
 
 ```bash
 # Restore from backup (will prompt for confirmation)
-./scripts/restore.sh backups/pooguard_backup_20240101_120000.sql.gz
+./scripts/restore.sh backups/clawguard_backup_20240101_120000.sql.gz
 
 # Restore without confirmation prompt
-./scripts/restore.sh backups/pooguard_backup_20240101_120000.sql.gz -y
+./scripts/restore.sh backups/clawguard_backup_20240101_120000.sql.gz -y
 
 # Restore in local mode
 ./scripts/restore.sh backup.sql.gz -l
@@ -472,14 +472,14 @@ For Windows deployments, use Task Scheduler:
 docker compose stop backend
 
 # Drop and recreate the database
-docker compose exec postgres psql -U pooguard -d postgres -c "DROP DATABASE IF EXISTS pooguard;"
-docker compose exec postgres psql -U pooguard -d postgres -c "CREATE DATABASE pooguard OWNER pooguard;"
+docker compose exec postgres psql -U clawguard -d postgres -c "DROP DATABASE IF EXISTS clawguard;"
+docker compose exec postgres psql -U clawguard -d postgres -c "CREATE DATABASE clawguard OWNER clawguard;"
 
 # Restore from compressed backup
-gunzip -c backup_20240101_120000.sql.gz | docker compose exec -T postgres psql -U pooguard -d pooguard
+gunzip -c backup_20240101_120000.sql.gz | docker compose exec -T postgres psql -U clawguard -d clawguard
 
 # Restore from uncompressed backup
-cat backup.sql | docker compose exec -T postgres psql -U pooguard -d pooguard
+cat backup.sql | docker compose exec -T postgres psql -U clawguard -d clawguard
 
 # Restart the backend
 docker compose start backend
@@ -490,7 +490,7 @@ docker compose start backend
 If your backup is in the Docker volume:
 
 ```bash
-docker compose exec postgres sh -c 'gunzip -c /backups/pooguard_backup_20240101_120000.sql.gz | psql -U pooguard -d pooguard'
+docker compose exec postgres sh -c 'gunzip -c /backups/clawguard_backup_20240101_120000.sql.gz | psql -U clawguard -d clawguard'
 ```
 
 #### Post-Restore Steps
@@ -532,10 +532,10 @@ Add this to your cron or scheduled task to clean up old backups:
 #!/bin/bash
 # cleanup-backups.sh
 
-BACKUP_DIR="/var/backups/pooguard"
+BACKUP_DIR="/var/backups/clawguard"
 
 # Delete daily backups older than 7 days
-find "$BACKUP_DIR" -name "pooguard_backup_*.sql.gz" -mtime +7 -delete
+find "$BACKUP_DIR" -name "clawguard_backup_*.sql.gz" -mtime +7 -delete
 
 # Keep weekly backups for 4 weeks (28 days)
 # Keep monthly backups for 365 days
@@ -547,7 +547,7 @@ Add to cron:
 
 ```bash
 # Run cleanup daily at 4:00 AM
-0 4 * * * /path/to/cleanup-backups.sh >> /var/log/pooguard-backup.log 2>&1
+0 4 * * * /path/to/cleanup-backups.sh >> /var/log/clawguard-backup.log 2>&1
 ```
 
 #### Storage Considerations
@@ -560,7 +560,7 @@ Example S3 sync:
 
 ```bash
 # Sync backups to S3 (add to cron after backup)
-aws s3 sync /var/backups/pooguard s3://your-bucket/pooguard-backups/ --delete
+aws s3 sync /var/backups/clawguard s3://your-bucket/clawguard-backups/ --delete
 ```
 
 ---
@@ -571,21 +571,21 @@ PooGuard uses the following named Docker volumes:
 
 | Volume Name | Purpose | Mount Point |
 |-------------|---------|-------------|
-| `pooguard-postgres-data` | PostgreSQL data | `/var/lib/postgresql/data` |
-| `pooguard-redis-data` | Redis AOF/RDB data | `/data` |
-| `pooguard-model-cache` | HuggingFace model cache | `/home/appuser/.cache/huggingface` |
-| `pooguard-backups` | Database backups | `/backups` (in postgres container) |
+| `clawguard-postgres-data` | PostgreSQL data | `/var/lib/postgresql/data` |
+| `clawguard-redis-data` | Redis AOF/RDB data | `/data` |
+| `clawguard-model-cache` | HuggingFace model cache | `/home/appuser/.cache/huggingface` |
+| `clawguard-backups` | Database backups | `/backups` (in postgres container) |
 
 ### Listing Volumes
 
 ```bash
-docker volume ls | grep pooguard
+docker volume ls | grep clawguard
 ```
 
 ### Inspecting Volumes
 
 ```bash
-docker volume inspect pooguard-postgres-data
+docker volume inspect clawguard-postgres-data
 ```
 
 ### Backing Up Volumes
@@ -594,10 +594,10 @@ For complete disaster recovery, you may want to backup entire volumes:
 
 ```bash
 # Backup postgres data volume
-docker run --rm -v pooguard-postgres-data:/data -v $(pwd):/backup alpine tar czf /backup/postgres-volume.tar.gz -C /data .
+docker run --rm -v clawguard-postgres-data:/data -v $(pwd):/backup alpine tar czf /backup/postgres-volume.tar.gz -C /data .
 
 # Restore postgres data volume
-docker run --rm -v pooguard-postgres-data:/data -v $(pwd):/backup alpine sh -c "cd /data && tar xzf /backup/postgres-volume.tar.gz"
+docker run --rm -v clawguard-postgres-data:/data -v $(pwd):/backup alpine sh -c "cd /data && tar xzf /backup/postgres-volume.tar.gz"
 ```
 
 **Note:** Volume backups require stopping the containers first to ensure data consistency.

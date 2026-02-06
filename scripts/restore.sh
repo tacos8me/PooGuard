@@ -14,8 +14,8 @@ set -e
 # Default configuration
 USE_DOCKER=true
 SKIP_CONFIRM=false
-DB_NAME="pooguard"
-DB_USER="pooguard"
+DB_NAME="clawguard"
+DB_USER="clawguard"
 DB_HOST="localhost"
 DB_PORT="5432"
 DOCKER_SERVICE="postgres"
@@ -57,7 +57,7 @@ while [[ $# -gt 0 ]]; do
             echo "  -h, --help         Show this help message"
             echo ""
             echo "Examples:"
-            echo "  ./restore.sh backups/pooguard_backup_20240101_120000.sql.gz"
+            echo "  ./restore.sh backups/clawguard_backup_20240101_120000.sql.gz"
             echo "  ./restore.sh backup.sql.gz -l -y"
             echo "  ./restore.sh backup.sql.gz -f docker-compose.prod.yml"
             exit 0

@@ -41,7 +41,7 @@ const { router, initDb } = require('../../src/routes/users');
 
 // ── Test Data ─────────────────────────────────────────────────────
 
-const adminUser = { id: 1, email: 'admin@pooguard.local', role: 'admin' };
+const adminUser = { id: 1, email: 'admin@clawguard.local', role: 'admin' };
 const viewerUser = { id: 5, email: 'viewer@test.com', role: 'viewer' };
 const targetUser = { id: 10, email: 'target@test.com', role: 'viewer', created_at: new Date(), updated_at: new Date() };
 

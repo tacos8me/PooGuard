@@ -136,7 +136,7 @@ docker compose up            # first run downloads the ~13 GB model
 | API       | http://localhost:3001         |
 | Proxy     | http://localhost:3001/v1      |
 
-Default login: `admin@pooguard.local` / `admin123`
+Default login: `admin@clawguard.local` / `admin123`
 
 > **Tip:** The model download is cached in a Docker volume. Subsequent starts are fast.
 

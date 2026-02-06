@@ -25,8 +25,8 @@ if ($Help) {
 }
 
 # Configuration
-$DbName = "pooguard"
-$DbUser = "pooguard"
+$DbName = "clawguard"
+$DbUser = "clawguard"
 $DbHost = "localhost"
 $DbPort = "5432"
 $DockerService = "postgres"
@@ -38,7 +38,7 @@ if (-not (Test-Path $OutputDir)) {
 
 # Generate timestamp for filename
 $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$BackupFile = Join-Path $OutputDir "pooguard_backup_$Timestamp.sql.gz"
+$BackupFile = Join-Path $OutputDir "clawguard_backup_$Timestamp.sql.gz"
 
 Write-Host "PooGuard PostgreSQL Backup" -ForegroundColor Cyan
 Write-Host "===========================" -ForegroundColor Cyan
@@ -74,7 +74,7 @@ if (-not $Local) {
 
     # Create backup using pg_dump and gzip
     # Note: On Windows, we need to handle the piping differently
-    $tempSqlFile = Join-Path $env:TEMP "pooguard_backup_$Timestamp.sql"
+    $tempSqlFile = Join-Path $env:TEMP "clawguard_backup_$Timestamp.sql"
 
     docker compose exec -T $DockerService pg_dump -U $DbUser $DbName > $tempSqlFile
 
@@ -115,7 +115,7 @@ else {
         exit 1
     }
 
-    $tempSqlFile = Join-Path $env:TEMP "pooguard_backup_$Timestamp.sql"
+    $tempSqlFile = Join-Path $env:TEMP "clawguard_backup_$Timestamp.sql"
 
     # Use DATABASE_URL if available
     if ($env:DATABASE_URL) {
