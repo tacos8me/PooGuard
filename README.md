@@ -13,6 +13,12 @@
 
 ---
 
+<div align="center">
+
+![PooGuard Dashboard](docs/poo.png)
+
+</div>
+
 PooGuard is an open-source LLM firewall that sits between your chat clients and upstream language models, analyzing every message for prompt injection, jailbreak attempts, PII leakage, and semantic evasion attacks. It uses a real 21-billion parameter MoE model running on-device GPU inference — not regex, not keyword matching — to score threats in real time, blocking or flagging dangerous inputs before they reach your LLM.
 
 Deploy it as a drop-in OAI-compatible proxy. Point SillyTavern, Open WebUI, Chatbox, or any OpenAI-compatible client at PooGuard, and every request gets analyzed, scored, and logged with zero changes to your existing setup.
@@ -42,63 +48,58 @@ Deploy it as a drop-in OAI-compatible proxy. Point SillyTavern, Open WebUI, Chat
 ## Architecture
 
 ```mermaid
-flowchart TB
-    subgraph Clients
-        A1[Chat Client<br/>SillyTavern / Open WebUI]
-        A2[Dashboard<br/>React SPA]
+flowchart LR
+    subgraph Clients [" "]
+        direction TB
+        A1["💬 Chat Client\nSillyTavern / Open WebUI"]
+        A2["📊 Dashboard"]
     end
 
-    subgraph PooGuard ["PooGuard (Docker Compose)"]
+    subgraph PG ["PooGuard Stack"]
         direction TB
 
-        subgraph Frontend ["Frontend — nginx :3000"]
-            FE[React / Vite App]
+        subgraph BE ["Backend · Node.js :3001"]
+            direction LR
+            PROXY["/v1 Proxy"]
+            API["/api Routes"]
+            MW["Middleware\nCSRF · Rate Limit · Egress"]
+            WS["Socket.IO"]
         end
 
-        subgraph Backend ["Backend — Node.js :3001"]
-            PROXY["/v1 Proxy<br/>OAI-Compatible"]
-            API["/api Routes<br/>Auth, Firewall, Analytics, Alerts"]
-            MW["Middleware Stack<br/>CSRF, Rate Limiter, Egress Monitor"]
-            WS["Socket.IO<br/>Real-time Events"]
+        subgraph MS ["Model Service · FastAPI :8000"]
+            direction LR
+            NORM["Normalizer\nbase64 · hex · homoglyphs"]
+            INF["Threat Classifier\ngpt-oss-safeguard-20b"]
+            SEM["Semantic Similarity\n121 attack patterns"]
         end
 
-        subgraph ModelService ["Model Service — FastAPI :8000"]
-            INF["Threat Classifier<br/>gpt-oss-safeguard-20b"]
-            SEM["Semantic Similarity<br/>Attack Pattern Matching"]
-            NORM["Input Normalizer<br/>Deobfuscation Layer"]
-        end
-
-        PG[(PostgreSQL 16)]
-        RD[(Redis 7)]
+        DB[(PostgreSQL)]
+        RD[(Redis)]
     end
 
-    LLM[Upstream LLM<br/>llama-swap / OpenAI / etc.]
+    LLM["🤖 Upstream LLM"]
 
-    A1 -- "API key auth" --> PROXY
-    A2 -- "JWT auth" --> FE
-    FE -- "/api, /socket.io" --> API
-    FE -- "WebSocket" --> WS
-
-    PROXY -- "Extract & analyze" --> MW
-    API --> MW
-    MW -- "POST /analyze" --> NORM
-    NORM --> INF
-    NORM --> SEM
-
-    PROXY -- "Safe requests" --> LLM
-    LLM -- "Response" --> PROXY
-
-    Backend -- "Queries & logs" --> PG
-    Backend -- "Pub/Sub & cache" --> RD
-    RD -- "firewall:events" --> WS
+    A1 -->|"Bearer sk-pg-*"| PROXY
+    A2 -->|JWT| API
+    PROXY & API --> MW
+    MW -->|"/analyze"| NORM
+    NORM --> INF & SEM
+    PROXY -->|"safe"| LLM
+    LLM -->|"response"| PROXY
+    API --> DB
+    API <--> RD
+    RD -.->|"events"| WS -.-> A2
 ```
 
 ### Request Flow
 
 ```
-Client Request --> Auth --> Extract --> Normalize --> Classify --> Evaluate --> Forward or Block
-                                                                                      |
-Response <-- Egress Scan <-- Upstream LLM <-------------------------------------------+
+Request ➜ Auth ➜ Extract ➜ Normalize ➜ Classify ➜ Evaluate ➜ Forward ➜ Upstream LLM
+                                                      |               |
+                                                    Block         Response
+                                                      |               |
+                                                      ▼               ▼
+                                                   Client  ◀── Egress Scan
 ```
 
 1. **Authentication** — `/v1/chat/completions` accepts JWT tokens or PooGuard API keys (`sk-pg-*`). The `proxyAuth` middleware validates credentials via SHA-256 hash lookup.
@@ -135,7 +136,7 @@ docker compose up            # first run downloads the ~13 GB model
 | API       | http://localhost:3001         |
 | Proxy     | http://localhost:3001/v1      |
 
-Default login: `admin@clawguard.local` / `admin123`
+Default login: `admin@pooguard.local` / `admin123`
 
 > **Tip:** The model download is cached in a Docker volume. Subsequent starts are fast.
 

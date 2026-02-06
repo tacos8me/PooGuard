@@ -1,5 +1,5 @@
 """
-End-to-end Calibration Pipeline Runner for ClawGuard.
+End-to-end Calibration Pipeline Runner for PooGuard.
 
 Takes benchmark raw_scores.json (from run_benchmark.py), feeds labeled data to
 the model-service POST /calibrate endpoint to fit Platt calibrators, then
@@ -272,7 +272,7 @@ def extract_calibrated_scores_and_labels(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="End-to-end ClawGuard calibration pipeline")
+    parser = argparse.ArgumentParser(description="End-to-end PooGuard calibration pipeline")
     parser.add_argument("--input", "-i", default="raw_scores.json",
                         help="Path to raw_scores.json (benchmark results)")
     parser.add_argument("--output-dir", "-o", default=".",

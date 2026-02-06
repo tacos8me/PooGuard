@@ -15,7 +15,7 @@ module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
 
   database: {
-    url: getConfigValue('DATABASE_URL', 'postgres://clawguard:devpassword@localhost:5432/clawguard_dev')
+    url: getConfigValue('DATABASE_URL', 'postgres://pooguard:devpassword@localhost:5432/pooguard_dev')
   },
 
   redis: {

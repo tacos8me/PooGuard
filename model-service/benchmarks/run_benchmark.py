@@ -1,5 +1,5 @@
 """
-Benchmark runner for ClawGuard calibration dataset.
+Benchmark runner for PooGuard calibration dataset.
 
 Sends each example to the live model-service /analyze endpoint and collects raw scores.
 Results are saved to raw_scores.json for analysis.

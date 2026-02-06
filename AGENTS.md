@@ -1,10 +1,10 @@
 # AGENTS.md
 
-This file documents the agent-based development approach used to build ClawGuard and provides guidance for future parallel agent work.
+This file documents the agent-based development approach used to build PooGuard and provides guidance for future parallel agent work.
 
 ## Build Strategy
 
-ClawGuard was built using 7 parallel agents working on independent workstreams. The project structure enables this by having clear service boundaries.
+PooGuard was built using 7 parallel agents working on independent workstreams. The project structure enables this by having clear service boundaries.
 
 ## Agent Workstreams
 
@@ -164,7 +164,7 @@ Security audit revealed critical gaps. See `docs/SECURITY_ASSESSMENT.md` for ful
 
 #### Output Filter Agent
 ```
-Add output filtering to ClawGuard:
+Add output filtering to PooGuard:
 
 1. model-service/main.py:
    - Add POST /analyze-output endpoint

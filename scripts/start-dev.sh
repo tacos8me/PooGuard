@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# ClawGuard Development Startup Script
+# PooGuard Development Startup Script
 
 set -e
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-echo "Starting ClawGuard Development Environment"
+echo "Starting PooGuard Development Environment"
 echo ""
 
 # Check for .env file

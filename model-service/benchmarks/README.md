@@ -1,4 +1,4 @@
-# ClawGuard Calibration Benchmark Dataset
+# PooGuard Calibration Benchmark Dataset
 
 ## Dataset Format
 

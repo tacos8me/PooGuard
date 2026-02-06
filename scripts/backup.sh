@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ClawGuard PostgreSQL Backup Script
+# PooGuard PostgreSQL Backup Script
 # Usage: ./backup.sh [options]
 #
 # Options:
@@ -14,8 +14,8 @@ set -e
 # Default configuration
 BACKUP_DIR="./backups"
 USE_DOCKER=true
-DB_NAME="clawguard"
-DB_USER="clawguard"
+DB_NAME="pooguard"
+DB_USER="pooguard"
 DB_HOST="localhost"
 DB_PORT="5432"
 DOCKER_SERVICE="postgres"
@@ -41,7 +41,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -h|--help)
-            echo "ClawGuard PostgreSQL Backup Script"
+            echo "PooGuard PostgreSQL Backup Script"
             echo ""
             echo "Usage: ./backup.sh [options]"
             echo ""
@@ -70,9 +70,9 @@ mkdir -p "$BACKUP_DIR"
 
 # Generate timestamp for filename
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/clawguard_backup_${TIMESTAMP}.sql.gz"
+BACKUP_FILE="$BACKUP_DIR/pooguard_backup_${TIMESTAMP}.sql.gz"
 
-echo "ClawGuard PostgreSQL Backup"
+echo "PooGuard PostgreSQL Backup"
 echo "==========================="
 echo "Timestamp: $(date)"
 echo "Output: $BACKUP_FILE"

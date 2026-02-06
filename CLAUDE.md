@@ -185,4 +185,4 @@ Environment variables (see `.env.example`):
 - `SAFEGUARD_MODEL_SIZE` - Model variant: `20b` or `120b`
 - `HF_TOKEN` - HuggingFace token for model download
 
-Default credentials (dev): `admin@clawguard.local` / `admin123`
+Default credentials (dev): `admin@pooguard.local` / `admin123`

@@ -1,11 +1,11 @@
-# ClawGuard Threshold Calibration Report
+# PooGuard Threshold Calibration Report
 
 Generated: 2026-02-06 14:12:26
 Dataset size: 360 examples
 
 ## Executive Summary
 
-This report presents the optimal detection thresholds for ClawGuard's threat
+This report presents the optimal detection thresholds for PooGuard's threat
 classification system. Thresholds were computed by analyzing model scores against
 a labeled benchmark dataset and optimizing for different operational goals.
 

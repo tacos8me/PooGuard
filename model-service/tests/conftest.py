@@ -1,5 +1,5 @@
 """
-Pytest configuration and fixtures for ClawGuard Model Service tests.
+Pytest configuration and fixtures for PooGuard Model Service tests.
 
 Uses unittest.mock to patch model loading and inference so tests run
 without downloading the real safeguard model. The embedding model (small,

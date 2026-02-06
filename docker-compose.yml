@@ -30,7 +30,7 @@ services:
       timeout: 10s
       retries: 3
     networks:
-      - clawguard-net
+      - pooguard-net
 
   backend:
     build:
@@ -43,7 +43,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - DATABASE_URL=postgres://clawguard:${DB_PASSWORD}@postgres:5432/clawguard
+      - DATABASE_URL=postgres://pooguard:${DB_PASSWORD}@postgres:5432/pooguard
       - REDIS_URL=redis://redis:6379
       - MODEL_SERVICE_URL=http://model-service:8000
       - MODEL_SERVICE_API_KEY=${MODEL_SERVICE_API_KEY}
@@ -70,7 +70,7 @@ services:
       timeout: 10s
       retries: 3
     networks:
-      - clawguard-net
+      - pooguard-net
 
   frontend:
     build:
@@ -89,14 +89,14 @@ services:
       # TLS certificates (mount in production)
       - ${TLS_CERT_PATH:-./certs}:/etc/nginx/ssl:ro
     networks:
-      - clawguard-net
+      - pooguard-net
 
   postgres:
     image: postgres:16-alpine
     environment:
-      - POSTGRES_USER=clawguard
+      - POSTGRES_USER=pooguard
       - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=clawguard
+      - POSTGRES_DB=pooguard
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - backups:/backups
@@ -106,12 +106,12 @@ services:
         limits:
           memory: 1G
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U clawguard"]
+      test: ["CMD-SHELL", "pg_isready -U pooguard"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - clawguard-net
+      - pooguard-net
 
   redis:
     image: redis:7-alpine
@@ -129,7 +129,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - clawguard-net
+      - pooguard-net
 
   # On-demand backup service - run with: docker compose run --rm backup
   backup:
@@ -138,9 +138,9 @@ services:
       - backups:/backups
     environment:
       - PGHOST=postgres
-      - PGUSER=clawguard
+      - PGUSER=pooguard
       - PGPASSWORD=${DB_PASSWORD}
-      - PGDATABASE=clawguard
+      - PGDATABASE=pooguard
     depends_on:
       postgres:
         condition: service_healthy
@@ -148,7 +148,7 @@ services:
     command:
       - |
         TIMESTAMP=$$(date +%Y%m%d_%H%M%S)
-        BACKUP_FILE="/backups/clawguard_backup_$${TIMESTAMP}.sql.gz"
+        BACKUP_FILE="/backups/pooguard_backup_$${TIMESTAMP}.sql.gz"
         echo "Creating backup: $${BACKUP_FILE}"
         pg_dump | gzip > "$${BACKUP_FILE}"
         echo "Backup completed: $$(du -h $${BACKUP_FILE})"
@@ -156,20 +156,20 @@ services:
         echo "Recent backups:"
         ls -lht /backups/*.sql.gz 2>/dev/null | head -5
     networks:
-      - clawguard-net
+      - pooguard-net
     profiles:
       - backup
 
 networks:
-  clawguard-net:
+  pooguard-net:
     driver: bridge
 
 volumes:
   postgres-data:
-    name: clawguard-postgres-data
+    name: pooguard-postgres-data
   redis-data:
-    name: clawguard-redis-data
+    name: pooguard-redis-data
   model-cache:
-    name: clawguard-model-cache
+    name: pooguard-model-cache
   backups:
-    name: clawguard-backups
+    name: pooguard-backups

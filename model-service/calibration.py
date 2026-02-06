@@ -1,5 +1,5 @@
 """
-Score Calibration Pipeline for ClawGuard Model Service.
+Score Calibration Pipeline for PooGuard Model Service.
 
 Provides Platt scaling (logistic/sigmoid) calibration to map raw model scores
 to well-calibrated probabilities. Applied AFTER raw model inference, BEFORE
@@ -18,7 +18,7 @@ import math
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger("clawguard-model-service")
+logger = logging.getLogger("pooguard-model-service")
 
 # Categories that can be independently calibrated
 CALIBRATION_CATEGORIES = ["prompt_injection", "jailbreak", "pii"]

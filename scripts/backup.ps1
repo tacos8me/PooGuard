@@ -1,4 +1,4 @@
-# ClawGuard PostgreSQL Backup Script (Windows)
+# PooGuard PostgreSQL Backup Script (Windows)
 # Usage: .\backup.ps1 [-OutputDir <path>] [-Local] [-Help]
 
 param(
@@ -8,7 +8,7 @@ param(
 )
 
 if ($Help) {
-    Write-Host "ClawGuard PostgreSQL Backup Script"
+    Write-Host "PooGuard PostgreSQL Backup Script"
     Write-Host ""
     Write-Host "Usage: .\backup.ps1 [options]"
     Write-Host ""
@@ -25,8 +25,8 @@ if ($Help) {
 }
 
 # Configuration
-$DbName = "clawguard"
-$DbUser = "clawguard"
+$DbName = "pooguard"
+$DbUser = "pooguard"
 $DbHost = "localhost"
 $DbPort = "5432"
 $DockerService = "postgres"
@@ -38,9 +38,9 @@ if (-not (Test-Path $OutputDir)) {
 
 # Generate timestamp for filename
 $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$BackupFile = Join-Path $OutputDir "clawguard_backup_$Timestamp.sql.gz"
+$BackupFile = Join-Path $OutputDir "pooguard_backup_$Timestamp.sql.gz"
 
-Write-Host "ClawGuard PostgreSQL Backup" -ForegroundColor Cyan
+Write-Host "PooGuard PostgreSQL Backup" -ForegroundColor Cyan
 Write-Host "===========================" -ForegroundColor Cyan
 Write-Host "Timestamp: $(Get-Date)"
 Write-Host "Output: $BackupFile"
@@ -74,7 +74,7 @@ if (-not $Local) {
 
     # Create backup using pg_dump and gzip
     # Note: On Windows, we need to handle the piping differently
-    $tempSqlFile = Join-Path $env:TEMP "clawguard_backup_$Timestamp.sql"
+    $tempSqlFile = Join-Path $env:TEMP "pooguard_backup_$Timestamp.sql"
 
     docker compose exec -T $DockerService pg_dump -U $DbUser $DbName > $tempSqlFile
 
@@ -115,7 +115,7 @@ else {
         exit 1
     }
 
-    $tempSqlFile = Join-Path $env:TEMP "clawguard_backup_$Timestamp.sql"
+    $tempSqlFile = Join-Path $env:TEMP "pooguard_backup_$Timestamp.sql"
 
     # Use DATABASE_URL if available
     if ($env:DATABASE_URL) {

@@ -2,16 +2,20 @@ const bcrypt = require('bcrypt');
 
 exports.seed = async function(knex) {
   // Create default admin user
-  const adminExists = await knex('users').where({ email: 'admin@clawguard.local' }).first();
+  const adminExists = await knex('users').where({ email: 'admin@pooguard.local' }).first();
 
   if (!adminExists) {
-    const passwordHash = await bcrypt.hash('admin123', 12);
+    const defaultPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    const passwordHash = await bcrypt.hash(defaultPassword, 12);
     await knex('users').insert({
-      email: 'admin@clawguard.local',
+      email: process.env.ADMIN_EMAIL || 'admin@pooguard.local',
       password_hash: passwordHash,
       role: 'admin'
     });
-    console.log('Created default admin user: admin@clawguard.local / admin123');
+    console.log(`Created default admin user: ${process.env.ADMIN_EMAIL || 'admin@pooguard.local'}`);
+    if (!process.env.ADMIN_PASSWORD) {
+      console.warn('WARNING: Using default admin password. Set ADMIN_PASSWORD env var for production!');
+    }
   }
 
   // Create default firewall config

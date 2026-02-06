@@ -1,5 +1,5 @@
 """
-Threshold Optimization Script for ClawGuard
+Threshold Optimization Script for PooGuard
 
 Consumes analysis_report.json (benchmark scores + true labels) and computes
 optimal thresholds per category using multiple strategies:
@@ -350,7 +350,7 @@ def generate_report(
 ) -> str:
     """Generate the full calibration report as markdown."""
     lines = []
-    lines.append("# ClawGuard Threshold Calibration Report")
+    lines.append("# PooGuard Threshold Calibration Report")
     lines.append("")
     lines.append(f"Generated: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append(f"Dataset size: {len(entries)} examples")
@@ -359,7 +359,7 @@ def generate_report(
     # Executive Summary
     lines.append("## Executive Summary")
     lines.append("")
-    lines.append("This report presents the optimal detection thresholds for ClawGuard's threat")
+    lines.append("This report presents the optimal detection thresholds for PooGuard's threat")
     lines.append("classification system. Thresholds were computed by analyzing model scores against")
     lines.append("a labeled benchmark dataset and optimizing for different operational goals.")
     lines.append("")
@@ -516,7 +516,7 @@ def generate_report(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Optimize ClawGuard detection thresholds")
+    parser = argparse.ArgumentParser(description="Optimize PooGuard detection thresholds")
     parser.add_argument(
         "--input", "-i",
         default="analysis_report.json",

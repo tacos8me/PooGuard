@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const config = require('../config');
 
 const ALGORITHM = 'aes-256-gcm';
-const SALT = 'pooguard-encryption-salt';
+const SALT = process.env.ENCRYPTION_SALT || 'pooguard-encryption-salt';
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
 

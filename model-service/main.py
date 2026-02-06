@@ -1,5 +1,5 @@
 """
-ClawGuard Model Inference Service
+PooGuard Model Inference Service
 
 A FastAPI-based service for threat classification of text inputs,
 detecting prompt injection, jailbreak attempts, and PII exposure.
@@ -308,7 +308,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-logger = logging.getLogger("clawguard-model-service")
+logger = logging.getLogger("pooguard-model-service")
 
 # Environment configuration
 MODEL_NAME = os.getenv("MODEL_NAME", "openai/gpt-oss-safeguard-20b")
@@ -1539,7 +1539,7 @@ calibration_pipeline = CalibrationPipeline()
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and shutdown events."""
     # Startup
-    logger.info("Starting ClawGuard Model Service")
+    logger.info("Starting PooGuard Model Service")
     logger.info(f"Device: {DEVICE}")
 
     try:
@@ -1555,12 +1555,12 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
-    logger.info("Shutting down ClawGuard Model Service")
+    logger.info("Shutting down PooGuard Model Service")
 
 
 # Create FastAPI application
 app = FastAPI(
-    title="ClawGuard Model Service",
+    title="PooGuard Model Service",
     description=(
         "Threat classification service for detecting prompt injection, "
         "jailbreak attempts, and PII exposure"
@@ -1670,25 +1670,25 @@ async def metrics() -> Response:
     gpu_available = torch.cuda.is_available()
 
     metrics_lines = [
-        "# HELP clawguard_uptime_seconds Service uptime in seconds",
-        "# TYPE clawguard_uptime_seconds gauge",
-        f"clawguard_uptime_seconds {uptime:.2f}",
+        "# HELP pooguard_uptime_seconds Service uptime in seconds",
+        "# TYPE pooguard_uptime_seconds gauge",
+        f"pooguard_uptime_seconds {uptime:.2f}",
         "",
-        "# HELP clawguard_requests_total Total number of analyze requests processed",
-        "# TYPE clawguard_requests_total counter",
-        f"clawguard_requests_total {requests_processed}",
+        "# HELP pooguard_requests_total Total number of analyze requests processed",
+        "# TYPE pooguard_requests_total counter",
+        f"pooguard_requests_total {requests_processed}",
         "",
-        "# HELP clawguard_request_latency_ms_avg Average request latency in milliseconds",
-        "# TYPE clawguard_request_latency_ms_avg gauge",
-        f"clawguard_request_latency_ms_avg {avg_latency:.2f}",
+        "# HELP pooguard_request_latency_ms_avg Average request latency in milliseconds",
+        "# TYPE pooguard_request_latency_ms_avg gauge",
+        f"pooguard_request_latency_ms_avg {avg_latency:.2f}",
         "",
-        "# HELP clawguard_model_loaded Whether the model is loaded (1=yes, 0=no)",
-        "# TYPE clawguard_model_loaded gauge",
-        f"clawguard_model_loaded {1 if model_service.is_loaded else 0}",
+        "# HELP pooguard_model_loaded Whether the model is loaded (1=yes, 0=no)",
+        "# TYPE pooguard_model_loaded gauge",
+        f"pooguard_model_loaded {1 if model_service.is_loaded else 0}",
         "",
-        "# HELP clawguard_gpu_available Whether GPU is available (1=yes, 0=no)",
-        "# TYPE clawguard_gpu_available gauge",
-        f"clawguard_gpu_available {1 if gpu_available else 0}",
+        "# HELP pooguard_gpu_available Whether GPU is available (1=yes, 0=no)",
+        "# TYPE pooguard_gpu_available gauge",
+        f"pooguard_gpu_available {1 if gpu_available else 0}",
     ]
 
     if gpu_available:
@@ -1699,17 +1699,17 @@ async def metrics() -> Response:
         metrics_lines.extend(
             [
                 "",
-                "# HELP clawguard_gpu_memory_allocated_mb GPU memory allocated in MB",
-                "# TYPE clawguard_gpu_memory_allocated_mb gauge",
-                f"clawguard_gpu_memory_allocated_mb {gpu_allocated:.2f}",
+                "# HELP pooguard_gpu_memory_allocated_mb GPU memory allocated in MB",
+                "# TYPE pooguard_gpu_memory_allocated_mb gauge",
+                f"pooguard_gpu_memory_allocated_mb {gpu_allocated:.2f}",
                 "",
-                "# HELP clawguard_gpu_memory_reserved_mb GPU memory reserved in MB",
-                "# TYPE clawguard_gpu_memory_reserved_mb gauge",
-                f"clawguard_gpu_memory_reserved_mb {gpu_reserved:.2f}",
+                "# HELP pooguard_gpu_memory_reserved_mb GPU memory reserved in MB",
+                "# TYPE pooguard_gpu_memory_reserved_mb gauge",
+                f"pooguard_gpu_memory_reserved_mb {gpu_reserved:.2f}",
                 "",
-                "# HELP clawguard_gpu_memory_total_mb Total GPU memory in MB",
-                "# TYPE clawguard_gpu_memory_total_mb gauge",
-                f"clawguard_gpu_memory_total_mb {gpu_total:.2f}",
+                "# HELP pooguard_gpu_memory_total_mb Total GPU memory in MB",
+                "# TYPE pooguard_gpu_memory_total_mb gauge",
+                f"pooguard_gpu_memory_total_mb {gpu_total:.2f}",
             ]
         )
 

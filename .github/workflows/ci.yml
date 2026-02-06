@@ -171,7 +171,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: false
-          tags: clawguard-backend:${{ github.sha }}
+          tags: pooguard-backend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -181,7 +181,7 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: false
-          tags: clawguard-frontend:${{ github.sha }}
+          tags: pooguard-frontend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -191,7 +191,7 @@ jobs:
           context: ./model-service
           file: ./model-service/Dockerfile
           push: false
-          tags: clawguard-model-service:${{ github.sha }}
+          tags: pooguard-model-service:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

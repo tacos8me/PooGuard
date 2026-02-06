@@ -1,1 +1,1 @@
-# Tests package for ClawGuard Model Service
+# Tests package for PooGuard Model Service

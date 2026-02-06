@@ -1,4 +1,4 @@
-# ClawGuard PostgreSQL Restore Script (Windows)
+# PooGuard PostgreSQL Restore Script (Windows)
 # Usage: .\restore.ps1 -BackupFile <path> [-Local] [-Yes] [-Help]
 
 param(
@@ -9,7 +9,7 @@ param(
 )
 
 if ($Help) {
-    Write-Host "ClawGuard PostgreSQL Restore Script"
+    Write-Host "PooGuard PostgreSQL Restore Script"
     Write-Host ""
     Write-Host "Usage: .\restore.ps1 -BackupFile <path> [options]"
     Write-Host ""
@@ -22,7 +22,7 @@ if ($Help) {
     Write-Host "  -Help               Show this help message"
     Write-Host ""
     Write-Host "Examples:"
-    Write-Host "  .\restore.ps1 -BackupFile .\backups\clawguard_backup_20240101_120000.sql.gz"
+    Write-Host "  .\restore.ps1 -BackupFile .\backups\pooguard_backup_20240101_120000.sql.gz"
     Write-Host "  .\restore.ps1 -BackupFile backup.sql.gz -Local -Yes"
     exit 0
 }
@@ -42,8 +42,8 @@ if (-not (Test-Path $BackupFile)) {
 }
 
 # Configuration
-$DbName = "clawguard"
-$DbUser = "clawguard"
+$DbName = "pooguard"
+$DbUser = "pooguard"
 $DbHost = "localhost"
 $DbPort = "5432"
 $DockerService = "postgres"
@@ -51,7 +51,7 @@ $DockerService = "postgres"
 # Determine if file is compressed
 $IsCompressed = $BackupFile -match "\.gz$"
 
-Write-Host "ClawGuard PostgreSQL Restore" -ForegroundColor Cyan
+Write-Host "PooGuard PostgreSQL Restore" -ForegroundColor Cyan
 Write-Host "============================" -ForegroundColor Cyan
 Write-Host "Timestamp: $(Get-Date)"
 Write-Host "Backup file: $BackupFile"
@@ -74,7 +74,7 @@ if (-not $Yes) {
 # Decompress if needed
 $SqlFile = $BackupFile
 if ($IsCompressed) {
-    $SqlFile = Join-Path $env:TEMP "clawguard_restore_temp.sql"
+    $SqlFile = Join-Path $env:TEMP "pooguard_restore_temp.sql"
     Write-Host "Decompressing backup..."
     try {
         $inputStream = [System.IO.File]::OpenRead($BackupFile)

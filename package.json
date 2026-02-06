@@ -1,7 +1,7 @@
 {
-  "name": "clawguard",
+  "name": "pooguard",
   "version": "1.0.0",
-  "description": "ClawGuard - AI-powered firewall protection",
+  "description": "PooGuard - AI-powered firewall protection",
   "private": true,
   "workspaces": [
     "backend",

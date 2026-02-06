@@ -1,6 +1,6 @@
-# ClawGuard Development Startup Script (Windows)
+# PooGuard Development Startup Script (Windows)
 
-Write-Host "Starting ClawGuard Development Environment" -ForegroundColor Cyan
+Write-Host "Starting PooGuard Development Environment" -ForegroundColor Cyan
 Write-Host ""
 
 $rootDir = Split-Path -Parent $PSScriptRoot

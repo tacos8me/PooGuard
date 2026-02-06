@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ClawGuard PostgreSQL Restore Script
+# PooGuard PostgreSQL Restore Script
 # Usage: ./restore.sh <backup_file> [options]
 #
 # Options:
@@ -14,8 +14,8 @@ set -e
 # Default configuration
 USE_DOCKER=true
 SKIP_CONFIRM=false
-DB_NAME="clawguard"
-DB_USER="clawguard"
+DB_NAME="pooguard"
+DB_USER="pooguard"
 DB_HOST="localhost"
 DB_PORT="5432"
 DOCKER_SERVICE="postgres"
@@ -42,7 +42,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -h|--help)
-            echo "ClawGuard PostgreSQL Restore Script"
+            echo "PooGuard PostgreSQL Restore Script"
             echo ""
             echo "Usage: ./restore.sh <backup_file> [options]"
             echo ""
@@ -57,7 +57,7 @@ while [[ $# -gt 0 ]]; do
             echo "  -h, --help         Show this help message"
             echo ""
             echo "Examples:"
-            echo "  ./restore.sh backups/clawguard_backup_20240101_120000.sql.gz"
+            echo "  ./restore.sh backups/pooguard_backup_20240101_120000.sql.gz"
             echo "  ./restore.sh backup.sql.gz -l -y"
             echo "  ./restore.sh backup.sql.gz -f docker-compose.prod.yml"
             exit 0
@@ -98,7 +98,7 @@ if [[ "$BACKUP_FILE" == *.gz ]]; then
     IS_COMPRESSED=true
 fi
 
-echo "ClawGuard PostgreSQL Restore"
+echo "PooGuard PostgreSQL Restore"
 echo "============================"
 echo "Timestamp: $(date)"
 echo "Backup file: $BACKUP_FILE"
