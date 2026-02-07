@@ -244,6 +244,77 @@ describe('secretMasker', () => {
     });
   });
 
+  describe('cloud provider patterns', () => {
+    it('should mask Azure account keys', () => {
+      const input = 'AccountKey=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGH==';
+      const result = mask(input);
+      expect(result.masked).toContain('[REDACTED:azure_key]');
+      expect(result.masked).not.toContain('abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGH==');
+      expect(result.detected.some(d => d.type === 'azure_key')).toBe(true);
+    });
+
+    it('should mask GCP API keys', () => {
+      const input = 'AIzaSyA1234567890abcdefghijklmnopqrstuvw';
+      const result = mask(input);
+      expect(result.masked).toContain('[REDACTED:gcp_key]');
+      expect(result.masked).not.toContain('AIzaSyA1234567890abcdefghijklmnopqrstuvw');
+      expect(result.detected.some(d => d.type === 'gcp_api_key')).toBe(true);
+    });
+
+    it('should mask Stripe secret keys', () => {
+      const input = 'sk_live_1234567890abcdefghijklmn';
+      const result = mask(input);
+      expect(result.masked).toContain('[REDACTED:stripe_key]');
+      expect(result.masked).not.toContain('sk_live_1234567890abcdefghijklmn');
+      expect(result.detected.some(d => d.type === 'stripe_key')).toBe(true);
+    });
+
+    it('should mask Stripe publishable keys', () => {
+      const input = 'pk_test_1234567890abcdefghijklmn';
+      const result = mask(input);
+      expect(result.masked).toContain('[REDACTED:stripe_key]');
+      expect(result.masked).not.toContain('pk_test_1234567890abcdefghijklmn');
+    });
+
+    it('should not match OpenAI keys with Stripe pattern', () => {
+      const input = 'sk-abc12345678901234567890';
+      const result = mask(input);
+      expect(result.detected.some(d => d.type === 'stripe_key')).toBe(false);
+      expect(result.detected.some(d => d.type === 'openai_key')).toBe(true);
+    });
+
+    it('should mask GitLab personal access tokens', () => {
+      const input = 'glpat-abcdefghijklmnopqrst';
+      const result = mask(input);
+      expect(result.masked).toContain('[REDACTED:gitlab_token]');
+      expect(result.masked).not.toContain('glpat-abcdefghijklmnopqrst');
+      expect(result.detected.some(d => d.type === 'gitlab_pat')).toBe(true);
+    });
+
+    it('should mask Slack bot tokens', () => {
+      const input = 'xoxb-1234567890-abcdefghij';
+      const result = mask(input);
+      expect(result.masked).toContain('[REDACTED:slack_token]');
+      expect(result.masked).not.toContain('xoxb-1234567890-abcdefghij');
+      expect(result.detected.some(d => d.type === 'slack_token')).toBe(true);
+    });
+
+    it('should mask Slack user tokens', () => {
+      const input = 'xoxp-1234567890-abcdefghij';
+      const result = mask(input);
+      expect(result.masked).toContain('[REDACTED:slack_token]');
+      expect(result.masked).not.toContain('xoxp-1234567890-abcdefghij');
+    });
+
+    it('should mask NPM tokens', () => {
+      const input = 'npm_abcdefghijklmnopqrstuvwxyz0123456789';
+      const result = mask(input);
+      expect(result.masked).toContain('[REDACTED:npm_token]');
+      expect(result.masked).not.toContain('npm_abcdefghijklmnopqrstuvwxyz0123456789');
+      expect(result.detected.some(d => d.type === 'npm_token')).toBe(true);
+    });
+  });
+
   describe('SECRET_PATTERNS', () => {
     it('should export SECRET_PATTERNS array', () => {
       expect(Array.isArray(SECRET_PATTERNS)).toBe(true);

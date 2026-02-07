@@ -45,3 +45,10 @@ module.exports = {
     }
   }
 };
+
+// Validate critical secrets in production
+if (module.exports.nodeEnv === 'production') {
+  if (!module.exports.jwt.secret || module.exports.jwt.secret.length < 32) {
+    throw new Error('JWT_SECRET must be at least 32 characters in production');
+  }
+}

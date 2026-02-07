@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import clsx from 'clsx';
@@ -429,14 +429,12 @@ export default function Dashboard() {
   const pendingEventsRef = useRef([]);
   const flushTimeoutRef = useRef(null);
 
-  const debouncedInvalidateAnalytics = useMemo(() => {
-    let timer;
-    return () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['analytics-summary'] });
-      }, 2000);
-    };
+  const analyticsTimerRef = useRef(null);
+  const debouncedInvalidateAnalytics = useCallback(() => {
+    clearTimeout(analyticsTimerRef.current);
+    analyticsTimerRef.current = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['analytics-summary'] });
+    }, 2000);
   }, [queryClient]);
 
   // Fetch initial analytics data
@@ -586,13 +584,13 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-zinc-100 tracking-tight">
-            Real-Time Monitoring
+          <h1 className="text-2xl font-bold text-dark-100 tracking-tight">
+            Dashboard
           </h1>
-          <p className="text-zinc-600 text-xs font-mono mt-0.5">
-            Security operations overview
+          <p className="text-dark-500 text-sm mt-1">
+            Real-time security operations overview
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -600,7 +598,7 @@ export default function Dashboard() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500" />
           </span>
-          <span className="text-zinc-500 text-xs font-mono">ACTIVE</span>
+          <span className="text-dark-500 text-xs font-mono">ACTIVE</span>
         </div>
       </div>
 

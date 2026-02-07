@@ -16,7 +16,7 @@ const generateAccessToken = (user) => {
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role },
     config.jwt.secret,
-    { expiresIn: config.jwt.accessToken.expiresIn }
+    { algorithm: 'HS256', expiresIn: config.jwt.accessToken.expiresIn }
   );
 };
 

@@ -12,7 +12,7 @@ const authMiddleware = (req, res, next) => {
   const token = authHeader.substring(7);
 
   try {
-    const decoded = jwt.verify(token, config.jwt.secret);
+    const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
     req.user = decoded;
     next();
   } catch (_err) {
@@ -35,7 +35,7 @@ const optionalAuth = (req, res, next) => {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
     try {
-      const decoded = jwt.verify(token, config.jwt.secret);
+      const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
       req.user = decoded;
     } catch (_err) {
       // Invalid token, but continue without user

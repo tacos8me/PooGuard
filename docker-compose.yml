@@ -14,6 +14,7 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       # CUDA 12.8 requires R570+ driver for Blackwell/SM120
       - CUDA_MODULE_LOADING=LAZY
+      - PYTORCH_ALLOC_CONF=expandable_segments:True
     volumes:
       - model-cache:/home/appuser/.cache/huggingface
     restart: unless-stopped

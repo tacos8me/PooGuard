@@ -26,5 +26,20 @@ export default [
       'no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
       'no-console': 'off'
     }
+  },
+  {
+    files: ['__tests__/**/*.js', '**/*.test.js', '**/*.spec.js'],
+    languageOptions: {
+      globals: {
+        jest: 'readonly',
+        describe: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        beforeAll: 'readonly',
+        beforeEach: 'readonly',
+        afterAll: 'readonly',
+        afterEach: 'readonly'
+      }
+    }
   }
 ];

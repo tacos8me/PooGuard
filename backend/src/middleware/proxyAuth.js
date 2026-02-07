@@ -27,7 +27,7 @@ const proxyAuth = async (req, res, next) => {
 
   // Path 1: Try JWT verification
   try {
-    const decoded = jwt.verify(token, config.jwt.secret);
+    const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
     req.user = decoded;
     return next();
   } catch (_jwtErr) {

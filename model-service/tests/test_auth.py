@@ -74,7 +74,7 @@ class TestAuthAcceptance:
 
 
 class TestUnauthenticatedEndpoints:
-    """Tests that health/metrics endpoints remain unauthenticated."""
+    """Tests that health/ready endpoints remain unauthenticated."""
 
     def test_health_accessible_without_api_key(self, unauthenticated_client: TestClient) -> None:
         response = unauthenticated_client.get("/health")
@@ -84,6 +84,7 @@ class TestUnauthenticatedEndpoints:
         response = unauthenticated_client.get("/ready")
         assert response.status_code == 200
 
-    def test_metrics_accessible_without_api_key(self, unauthenticated_client: TestClient) -> None:
+    def test_metrics_requires_api_key(self, unauthenticated_client: TestClient) -> None:
+        """Test that /metrics now requires API key authentication."""
         response = unauthenticated_client.get("/metrics")
-        assert response.status_code == 200
+        assert response.status_code == 401

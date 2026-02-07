@@ -6,7 +6,7 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const config = require('../../src/config');
-const { analyzeText } = require('../../src/services/modelService');
+const { analyzeTextCached } = require('../../src/services/modelService');
 const { publishEvent } = require('../../src/services/redis');
 
 // Mock rate limiter
@@ -111,7 +111,7 @@ function createMockDb(options = {}) {
   });
 
   mockDb.transaction = jest.fn().mockImplementation(async (cb) => {
-    const trx = jest.fn((tableName) => ({
+    const trx = jest.fn((_tableName) => ({
       del: jest.fn().mockResolvedValue(0),
       insert: jest.fn().mockResolvedValue(undefined),
     }));
@@ -189,7 +189,7 @@ describe('Proxy Routes', () => {
     jest.clearAllMocks();
 
     // Default: safe text
-    analyzeText.mockResolvedValue({
+    analyzeTextCached.mockResolvedValue({
       prompt_injection_score: 0.1,
       jailbreak_score: 0.1,
       pii_score: 0.1,
@@ -256,14 +256,18 @@ describe('Proxy Routes', () => {
 
       expect(res.body).toHaveProperty('id', 'chatcmpl-abc123');
       expect(res.body.choices[0].message.content).toBe('I am doing well!');
-      // Verify analyzeText was called with user text
-      expect(analyzeText).toHaveBeenCalledWith('Hello, how are you?');
+      // Verify analyzeTextCached was called with user text and cache options
+      expect(analyzeTextCached).toHaveBeenCalledWith('Hello, how are you?', expect.objectContaining({
+        cacheEnabled: true,
+        cacheTtlSeconds: 300,
+        modelVariant: '20b',
+      }));
       // Verify upstream request was made
       expect(axios.post).toHaveBeenCalled();
     });
 
     it('should block requests with high threat scores', async () => {
-      analyzeText.mockResolvedValue({
+      analyzeTextCached.mockResolvedValue({
         prompt_injection_score: 0.95,
         jailbreak_score: 0.1,
         pii_score: 0.1,
@@ -288,7 +292,7 @@ describe('Proxy Routes', () => {
     });
 
     it('should allow flagged requests through to upstream', async () => {
-      analyzeText.mockResolvedValue({
+      analyzeTextCached.mockResolvedValue({
         prompt_injection_score: 0.1,
         jailbreak_score: 0.1,
         pii_score: 0.8, // Above PII threshold, but PII action is 'flag'
@@ -333,7 +337,7 @@ describe('Proxy Routes', () => {
     });
 
     it('should return 503 when threat analysis service is unavailable', async () => {
-      analyzeText.mockRejectedValue(new Error('Model service unavailable'));
+      analyzeTextCached.mockRejectedValue(new Error('Model service unavailable'));
 
       const res = await request(app)
         .post('/v1/chat/completions')
@@ -361,8 +365,10 @@ describe('Proxy Routes', () => {
         .send(body)
         .expect(200);
 
-      // analyzeText should be called with concatenated user messages
-      expect(analyzeText).toHaveBeenCalledWith('First message\nSecond message');
+      // analyzeTextCached should be called with concatenated user messages
+      expect(analyzeTextCached).toHaveBeenCalledWith('First message\nSecond message', expect.objectContaining({
+        cacheEnabled: true,
+      }));
     });
 
     it('should handle upstream errors with appropriate status', async () => {
@@ -450,7 +456,9 @@ describe('Proxy Routes', () => {
         .send(body)
         .expect(200);
 
-      expect(analyzeText).toHaveBeenCalledWith('What is in this image?');
+      expect(analyzeTextCached).toHaveBeenCalledWith('What is in this image?', expect.objectContaining({
+        cacheEnabled: true,
+      }));
     });
   });
 

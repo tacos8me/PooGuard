@@ -11,7 +11,7 @@
  */
 const express = require('express');
 const axios = require('axios');
-const { analyzeText } = require('../services/modelService');
+const { analyzeTextCached } = require('../services/modelService');
 const { getFirewallConfig, getModelConfig, determineAction } = require('./firewall');
 const { publishEvent, CHANNELS } = require('../services/redis');
 const logger = require('../services/logger');
@@ -208,7 +208,11 @@ router.post('/chat/completions',
     // --- SYNC MODE (default): analyze before forwarding ---
     let scores;
     try {
-      scores = await analyzeText(userText);
+      scores = await analyzeTextCached(userText, {
+        cacheEnabled: firewallConfig.cacheEnabled,
+        cacheTtlSeconds: firewallConfig.cacheTtlSeconds,
+        modelVariant: firewallConfig.safeguardModel,
+      });
     } catch (err) {
       logger.error('Proxy threat analysis failed', { error: err.message });
 
@@ -359,8 +363,9 @@ async function handleNonStreaming(req, res, upstreamUrl, headers, body, ctx) {
     });
 
     const status = error.response?.status || 502;
-    const message = error.response?.data?.error?.message
-      || (error.code === 'ECONNREFUSED' ? 'Upstream model service unavailable' : error.message);
+    const rawMessage = error.response?.data?.error?.message
+      || (error.code === 'ECONNREFUSED' ? 'Upstream model service unavailable' : 'Upstream request failed');
+    const message = secretMasker.mask(rawMessage).masked;
 
     logger.error('Proxy upstream error', { error: message, status, userId: req.user?.id });
 
@@ -547,9 +552,10 @@ async function handleStreaming(req, res, upstreamUrl, headers, body, ctx) {
     });
 
   } catch (error) {
-    const message = error.code === 'ECONNREFUSED'
+    const rawMessage = error.code === 'ECONNREFUSED'
       ? 'Upstream model service unavailable'
-      : error.response?.data ? 'Upstream error' : error.message;
+      : error.response?.data ? 'Upstream error' : 'Upstream request failed';
+    const message = secretMasker.mask(rawMessage).masked;
 
     logger.error('Proxy stream connection failed', { error: message, userId: req.user?.id });
 

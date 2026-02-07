@@ -30,6 +30,24 @@ const SECRET_PATTERNS = [
   // Database connection strings
   { name: 'db_url', pattern: /(?:postgres|mysql|mongodb):\/\/[^:]+:[^@]+@[^\s]+/i, replacement: '[REDACTED:db_url]' },
 
+  // Azure keys
+  { name: 'azure_key', pattern: /(?:AccountKey|azure[_-]?(?:api[_-]?)?key)["\s:=]+["']?([a-zA-Z0-9/+=]{44,88})["']?/i, replacement: '[REDACTED:azure_key]' },
+
+  // GCP API keys (AIza prefix)
+  { name: 'gcp_api_key', pattern: /AIza[0-9A-Za-z\-_]{35}/, replacement: '[REDACTED:gcp_key]' },
+
+  // Stripe API keys (sk_live_, sk_test_, pk_live_, pk_test_)
+  { name: 'stripe_key', pattern: /(?:sk|pk)_(?:live|test)_[0-9a-zA-Z]{24,}/, replacement: '[REDACTED:stripe_key]' },
+
+  // GitLab Personal Access Tokens (glpat- prefix)
+  { name: 'gitlab_pat', pattern: /glpat-[0-9a-zA-Z_-]{20,}/, replacement: '[REDACTED:gitlab_token]' },
+
+  // Slack tokens (xoxb-, xoxp-, xoxa-, xoxo-)
+  { name: 'slack_token', pattern: /xox[bpao]-[0-9a-zA-Z-]{10,}/, replacement: '[REDACTED:slack_token]' },
+
+  // NPM tokens (npm_ prefix)
+  { name: 'npm_token', pattern: /npm_[0-9a-zA-Z]{36,}/, replacement: '[REDACTED:npm_token]' },
+
   // High entropy strings (potential secrets) - be careful with false positives
   { name: 'high_entropy', pattern: /(?:password|secret|token|key)["\s:=]{1,10}["']?([a-zA-Z0-9!@#$%^&*]{16,128})["']?/i, replacement: '[REDACTED:secret]' },
 ];

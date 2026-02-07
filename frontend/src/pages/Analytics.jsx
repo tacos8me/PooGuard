@@ -240,7 +240,7 @@ function Analytics() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-dark-100 tracking-tight">Analytics</h1>
-          <p className="text-dark-500 text-sm font-mono mt-1">Threat patterns and request statistics</p>
+          <p className="text-dark-500 text-sm mt-1">Threat patterns and request statistics</p>
         </div>
 
         {/* Period selector - pill tabs */}

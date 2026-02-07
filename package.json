@@ -22,8 +22,8 @@
       "eslint --fix --config frontend/eslint.config.js"
     ],
     "model-service/**/*.py": [
-      "black",
-      "flake8"
+      "black --config model-service/pyproject.toml",
+      "flake8 --config model-service/.flake8"
     ]
   },
   "devDependencies": {

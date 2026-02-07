@@ -1,6 +1,10 @@
 const bcrypt = require('bcrypt');
 
 exports.seed = async function(knex) {
+  if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_PASSWORD) {
+    throw new Error('ADMIN_PASSWORD is required in production. Set it in your .env file.');
+  }
+
   // Create default admin user
   const adminExists = await knex('users').where({ email: 'admin@clawguard.local' }).first();
 

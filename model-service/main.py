@@ -28,7 +28,7 @@ from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from calibration import CalibrationPipeline, CALIBRATION_CATEGORIES
+from calibration import CalibrationPipeline
 
 
 # ============================================================================
@@ -41,19 +41,49 @@ from calibration import CalibrationPipeline, CALIBRATION_CATEGORIES
 
 # L33t speak mapping (common substitutions)
 LEET_MAP = {
-    "0": "o", "1": "i", "3": "e", "4": "a", "5": "s",
-    "7": "t", "8": "b", "9": "g", "@": "a", "$": "s",
-    "!": "i", "|": "l", "+": "t", "(": "c", "¡": "i",
+    "0": "o",
+    "1": "i",
+    "3": "e",
+    "4": "a",
+    "5": "s",
+    "7": "t",
+    "8": "b",
+    "9": "g",
+    "@": "a",
+    "$": "s",
+    "!": "i",
+    "|": "l",
+    "+": "t",
+    "(": "c",
+    "¡": "i",
 }
 
 # Unicode homoglyph mapping (Cyrillic and other confusable characters → Latin)
 HOMOGLYPH_MAP = {
-    "\u0410": "A", "\u0412": "B", "\u0421": "C", "\u0415": "E",
-    "\u041d": "H", "\u041a": "K", "\u041c": "M", "\u041e": "O",
-    "\u0420": "P", "\u0422": "T", "\u0425": "X", "\u0423": "Y",
-    "\u0430": "a", "\u0435": "e", "\u043e": "o", "\u0440": "p",
-    "\u0441": "c", "\u0443": "y", "\u0445": "x", "\u0456": "i",
-    "\u0455": "s", "\u0458": "j", "\u04bb": "h", "\u0432": "b",
+    "\u0410": "A",
+    "\u0412": "B",
+    "\u0421": "C",
+    "\u0415": "E",
+    "\u041d": "H",
+    "\u041a": "K",
+    "\u041c": "M",
+    "\u041e": "O",
+    "\u0420": "P",
+    "\u0422": "T",
+    "\u0425": "X",
+    "\u0423": "Y",
+    "\u0430": "a",
+    "\u0435": "e",
+    "\u043e": "o",
+    "\u0440": "p",
+    "\u0441": "c",
+    "\u0443": "y",
+    "\u0445": "x",
+    "\u0456": "i",
+    "\u0455": "s",
+    "\u0458": "j",
+    "\u04bb": "h",
+    "\u0432": "b",
     # Greek confusable characters
     "\u03bf": "o",  # Greek omicron → o
     "\u039f": "O",  # Greek capital omicron → O
@@ -76,20 +106,58 @@ HOMOGLYPH_MAP = {
     "\u03c7": "x",  # Greek chi → x
     "\u03a7": "X",  # Greek capital chi → X
     # Fullwidth Latin
-    "\uff21": "A", "\uff22": "B", "\uff23": "C", "\uff24": "D",
-    "\uff25": "E", "\uff26": "F", "\uff27": "G", "\uff28": "H",
-    "\uff29": "I", "\uff2a": "J", "\uff2b": "K", "\uff2c": "L",
-    "\uff2d": "M", "\uff2e": "N", "\uff2f": "O", "\uff30": "P",
-    "\uff31": "Q", "\uff32": "R", "\uff33": "S", "\uff34": "T",
-    "\uff35": "U", "\uff36": "V", "\uff37": "W", "\uff38": "X",
-    "\uff39": "Y", "\uff3a": "Z",
-    "\uff41": "a", "\uff42": "b", "\uff43": "c", "\uff44": "d",
-    "\uff45": "e", "\uff46": "f", "\uff47": "g", "\uff48": "h",
-    "\uff49": "i", "\uff4a": "j", "\uff4b": "k", "\uff4c": "l",
-    "\uff4d": "m", "\uff4e": "n", "\uff4f": "o", "\uff50": "p",
-    "\uff51": "q", "\uff52": "r", "\uff53": "s", "\uff54": "t",
-    "\uff55": "u", "\uff56": "v", "\uff57": "w", "\uff58": "x",
-    "\uff59": "y", "\uff5a": "z",
+    "\uff21": "A",
+    "\uff22": "B",
+    "\uff23": "C",
+    "\uff24": "D",
+    "\uff25": "E",
+    "\uff26": "F",
+    "\uff27": "G",
+    "\uff28": "H",
+    "\uff29": "I",
+    "\uff2a": "J",
+    "\uff2b": "K",
+    "\uff2c": "L",
+    "\uff2d": "M",
+    "\uff2e": "N",
+    "\uff2f": "O",
+    "\uff30": "P",
+    "\uff31": "Q",
+    "\uff32": "R",
+    "\uff33": "S",
+    "\uff34": "T",
+    "\uff35": "U",
+    "\uff36": "V",
+    "\uff37": "W",
+    "\uff38": "X",
+    "\uff39": "Y",
+    "\uff3a": "Z",
+    "\uff41": "a",
+    "\uff42": "b",
+    "\uff43": "c",
+    "\uff44": "d",
+    "\uff45": "e",
+    "\uff46": "f",
+    "\uff47": "g",
+    "\uff48": "h",
+    "\uff49": "i",
+    "\uff4a": "j",
+    "\uff4b": "k",
+    "\uff4c": "l",
+    "\uff4d": "m",
+    "\uff4e": "n",
+    "\uff4f": "o",
+    "\uff50": "p",
+    "\uff51": "q",
+    "\uff52": "r",
+    "\uff53": "s",
+    "\uff54": "t",
+    "\uff55": "u",
+    "\uff56": "v",
+    "\uff57": "w",
+    "\uff58": "x",
+    "\uff59": "y",
+    "\uff5a": "z",
 }
 
 # Zero-width and invisible characters to strip
@@ -111,6 +179,7 @@ URL_ENCODED_RE = re.compile(r"%[0-9a-fA-F]{2}")
 
 def _decode_base64_segments(text: str) -> str:
     """Attempt to decode base64 segments embedded in text."""
+
     def _try_decode(match: re.Match) -> str:
         segment = match.group(0)
         try:
@@ -127,6 +196,7 @@ def _decode_base64_segments(text: str) -> str:
 
 def _decode_hex_segments(text: str) -> str:
     """Attempt to decode hex-encoded segments embedded in text."""
+
     def _try_decode(match: re.Match) -> str:
         hex_str = match.group(1)
         if len(hex_str) % 2 != 0:
@@ -185,6 +255,7 @@ def _collapse_whitespace_insertion(text: str) -> str:
     E.g., "i g n o r e" → "ignore"
     Only collapses when pattern is single chars separated by spaces.
     """
+
     # Match sequences of single characters separated by spaces (at least 4 chars)
     def _collapse(match: re.Match) -> str:
         return match.group(0).replace(" ", "")
@@ -194,10 +265,30 @@ def _collapse_whitespace_insertion(text: str) -> str:
 
 # Keywords that indicate a ROT13 decoding produced meaningful attack content
 ROT13_ATTACK_KEYWORDS = [
-    "ignore", "bypass", "override", "jailbreak", "inject", "prompt",
-    "system", "instruction", "disregard", "reveal", "secret", "admin",
-    "password", "credential", "hack", "exploit", "sudo", "command",
-    "execute", "shell", "delete", "drop", "transfer", "steal",
+    "ignore",
+    "bypass",
+    "override",
+    "jailbreak",
+    "inject",
+    "prompt",
+    "system",
+    "instruction",
+    "disregard",
+    "reveal",
+    "secret",
+    "admin",
+    "password",
+    "credential",
+    "hack",
+    "exploit",
+    "sudo",
+    "command",
+    "execute",
+    "shell",
+    "delete",
+    "drop",
+    "transfer",
+    "steal",
 ]
 
 
@@ -296,9 +387,11 @@ def normalize_text(text: str) -> str:
 
     return combined
 
+
 # Conditional import of sentence_transformers (may not be available in all environments)
 try:
     from sentence_transformers import SentenceTransformer
+
     SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
@@ -330,9 +423,7 @@ PII_THRESHOLD = float(os.getenv("PII_THRESHOLD", "0.70"))
 
 # GPU memory management threshold (in bytes, default 24GB)
 # Model uses ~13GB in MXFP4; set well above steady-state to avoid per-request cleanup spam
-GPU_MEMORY_CLEANUP_THRESHOLD = int(
-    os.getenv("GPU_MEMORY_CLEANUP_THRESHOLD", str(24 * 1024 * 1024 * 1024))
-)
+GPU_MEMORY_CLEANUP_THRESHOLD = int(os.getenv("GPU_MEMORY_CLEANUP_THRESHOLD", str(24 * 1024 * 1024 * 1024)))
 
 # Calibration parameters file path
 CALIBRATION_PARAMS_PATH = os.getenv(
@@ -596,47 +687,23 @@ class AnalyzeResponse(BaseModel):
     prompt_injection_score: float = Field(
         ..., ge=0.0, le=1.0, description="Score indicating likelihood of prompt injection"
     )
-    jailbreak_score: float = Field(
-        ..., ge=0.0, le=1.0, description="Score indicating likelihood of jailbreak attempt"
-    )
-    pii_score: float = Field(
-        ..., ge=0.0, le=1.0, description="Score indicating likelihood of PII exposure"
-    )
+    jailbreak_score: float = Field(..., ge=0.0, le=1.0, description="Score indicating likelihood of jailbreak attempt")
+    pii_score: float = Field(..., ge=0.0, le=1.0, description="Score indicating likelihood of PII exposure")
     semantic_similarity_score: float = Field(
         default=0.0, ge=0.0, le=1.0, description="Score based on semantic similarity to known attack patterns"
     )
-    blocked: bool = Field(
-        ..., description="Whether the input should be blocked based on thresholds"
-    )
-    detected_threats: list[str] = Field(
-        default_factory=list, description="List of detected threat types"
-    )
-    processing_time_ms: float = Field(
-        ..., description="Time taken to process the request in milliseconds"
-    )
-
-
-class GPUMemoryInfo(BaseModel):
-    """GPU memory information for health endpoint."""
-
-    allocated_mb: float = Field(..., description="GPU memory currently allocated in MB")
-    reserved_mb: float = Field(..., description="GPU memory currently reserved in MB")
-    total_mb: float = Field(..., description="Total GPU memory in MB")
+    blocked: bool = Field(..., description="Whether the input should be blocked based on thresholds")
+    detected_threats: list[str] = Field(default_factory=list, description="List of detected threat types")
+    processing_time_ms: float = Field(..., description="Time taken to process the request in milliseconds")
 
 
 class HealthResponse(BaseModel):
-    """Response model for the /health endpoint with comprehensive metrics."""
+    """Response model for the /health endpoint (minimal for Docker healthcheck)."""
 
     status: str = Field(..., description="Service health status")
     model_loaded: bool = Field(..., description="Whether the model is loaded")
-    model_name: str = Field(..., description="Name of the loaded model")
     device: str = Field(..., description="Device being used for inference")
     gpu_available: bool = Field(..., description="Whether GPU is available")
-    gpu_name: Optional[str] = Field(None, description="Name of the GPU device")
-    gpu_memory: GPUMemoryInfo = Field(..., description="GPU memory usage information")
-    requests_processed: int = Field(..., description="Total number of requests processed")
-    average_latency_ms: float = Field(..., description="Average request latency in milliseconds")
-    uptime_seconds: float = Field(..., description="Service uptime in seconds")
 
 
 class ReadyResponse(BaseModel):
@@ -726,21 +793,13 @@ class OutputAnalyzeRequest(BaseModel):
 class OutputAnalyzeResponse(BaseModel):
     """Response model for the /analyze-output endpoint."""
 
-    safe: bool = Field(
-        ..., description="Whether the output is safe to return to the user"
-    )
+    safe: bool = Field(..., description="Whether the output is safe to return to the user")
     detected: List[DetectedSensitiveData] = Field(
         default_factory=list, description="List of detected sensitive patterns"
     )
-    sanitized_output: str = Field(
-        ..., description="Output with sensitive data masked"
-    )
-    scores: dict = Field(
-        default_factory=dict, description="Sensitivity scores by category"
-    )
-    processing_time_ms: float = Field(
-        ..., description="Time taken to process the request in milliseconds"
-    )
+    sanitized_output: str = Field(..., description="Output with sensitive data masked")
+    scores: dict = Field(default_factory=dict, description="Sensitivity scores by category")
+    processing_time_ms: float = Field(..., description="Time taken to process the request in milliseconds")
 
 
 # Batch processing configuration
@@ -781,9 +840,7 @@ class BatchAnalyzeResponse(BaseModel):
     total_count: int = Field(..., description="Total number of texts in the request")
     success_count: int = Field(..., description="Number of successfully processed texts")
     failure_count: int = Field(..., description="Number of texts that failed to process")
-    processing_time_ms: float = Field(
-        ..., description="Total time taken to process the batch in milliseconds"
-    )
+    processing_time_ms: float = Field(..., description="Total time taken to process the batch in milliseconds")
 
 
 class ModelService:
@@ -797,6 +854,7 @@ class ModelService:
         self.is_loaded: bool = False
         self.embedding_loaded: bool = False
         self.current_model_size: str = SAFEGUARD_MODEL_SIZE
+        self._template_overhead_tokens: Optional[int] = None
 
     def load_embedding_model(self) -> None:
         """Load the sentence transformer model for semantic similarity."""
@@ -828,9 +886,7 @@ class ModelService:
 
         try:
             # Encode the input text
-            input_embedding = self.embedding_model.encode(
-                [text], convert_to_numpy=True, normalize_embeddings=True
-            )[0]
+            input_embedding = self.embedding_model.encode([text], convert_to_numpy=True, normalize_embeddings=True)[0]
 
             # Compute cosine similarity with all attack patterns
             # Since embeddings are normalized, dot product = cosine similarity
@@ -901,29 +957,22 @@ class ModelService:
                 "Analyzing head and tail to prevent truncation bypass."
             )
 
-            # Head analysis: first MAX_MODEL_TOKENS tokens (standard truncation)
-            head_tokens = self.tokenizer(
-                prompt,
-                return_tensors="pt",
-                truncation=True,
-                max_length=self.MAX_MODEL_TOKENS,
-                padding=True,
-            )
-            head_scores = self._run_inference(head_tokens)
+            # Head analysis: slice existing tokens to avoid re-tokenizing
+            head_inputs = {k: v[:, : self.MAX_MODEL_TOKENS] for k, v in full_tokens.items()}
+            head_scores = self._run_inference(head_inputs)
 
             # Tail analysis: build prompt from the LAST portion of the user text.
-            # Estimate how many tokens the system prompt / template overhead uses,
-            # then take the last (MAX_MODEL_TOKENS - overhead) tokens of user text.
-            empty_prompt = self._build_harmony_prompt("")
-            overhead_tokens = len(self.tokenizer.encode(empty_prompt))
+            # Cache template overhead (constant across calls) for efficiency.
+            if self._template_overhead_tokens is None:
+                empty_prompt = self._build_harmony_prompt("")
+                self._template_overhead_tokens = len(self.tokenizer.encode(empty_prompt))
+            overhead_tokens = self._template_overhead_tokens
             user_budget = self.MAX_MODEL_TOKENS - overhead_tokens
 
             # Tokenize just the user text to extract the tail
             user_token_ids = self.tokenizer.encode(text, add_special_tokens=False)
             if len(user_token_ids) > user_budget:
-                tail_text = self.tokenizer.decode(
-                    user_token_ids[-user_budget:], skip_special_tokens=True
-                )
+                tail_text = self.tokenizer.decode(user_token_ids[-user_budget:], skip_special_tokens=True)
                 tail_prompt = self._build_harmony_prompt(tail_text)
                 tail_tokens = self.tokenizer(
                     tail_prompt,
@@ -935,10 +984,7 @@ class ModelService:
                 tail_scores = self._run_inference(tail_tokens)
 
                 # Return MAX scores across head and tail
-                return {
-                    key: max(head_scores[key], tail_scores[key])
-                    for key in head_scores
-                }
+                return {key: max(head_scores[key], tail_scores[key]) for key in head_scores}
 
             return head_scores
 
@@ -951,11 +997,10 @@ class ModelService:
         if DEVICE == "cuda":
             inputs = {k: v.to(DEVICE) for k, v in inputs.items()}
 
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=256,
-                temperature=0.1,
+                max_new_tokens=128,
                 do_sample=False,
                 pad_token_id=self.tokenizer.eos_token_id,
             )
@@ -1031,7 +1076,7 @@ class ModelService:
         clean = response.replace("<|channel|>", "\n").replace("<|end|>", "").replace("<|return|>", "")
 
         # Try to extract JSON from the response (last JSON object, which is the final answer)
-        json_objects = list(re.finditer(r'\{[^{}]*\}', clean, re.DOTALL))
+        json_objects = list(re.finditer(r"\{[^{}]*\}", clean, re.DOTALL))
         for match in reversed(json_objects):
             try:
                 parsed = json_mod.loads(match.group(0))
@@ -1172,7 +1217,9 @@ class ModelService:
             return False
 
     @staticmethod
-    def _has_context_words(text: str, match_start: int, match_end: int, context_words: list[str], window: int = 80) -> bool:
+    def _has_context_words(
+        text: str, match_start: int, match_end: int, context_words: list[str], window: int = 80
+    ) -> bool:
         """Check if any context words appear near a match within a character window."""
         start = max(0, match_start - window)
         end = min(len(text), match_end + window)
@@ -1206,9 +1253,6 @@ class ModelService:
             "system_prompt_disclosure_score": 0.0,
             "secret_score": 0.0,
         }
-
-        # Track what we find in normalized text too
-        normalized_detected: List[DetectedSensitiveData] = []
 
         # PII detection patterns with masking
         pii_patterns = [
@@ -1380,7 +1424,9 @@ class ModelService:
                 # Check context-word requirements
                 if pii_type in pii_context_requirements:
                     if not self._has_context_words(
-                        text, match.start(), match.end(),
+                        text,
+                        match.start(),
+                        match.end(),
                         pii_context_requirements[pii_type],
                     ):
                         continue
@@ -1439,7 +1485,9 @@ class ModelService:
                         # Apply same context and validation checks
                         if pii_type in pii_context_requirements:
                             if not self._has_context_words(
-                                normalized, match.start(), match.end(),
+                                normalized,
+                                match.start(),
+                                match.end(),
                                 pii_context_requirements[pii_type],
                             ):
                                 continue
@@ -1531,6 +1579,9 @@ class ModelService:
 # Global model service instance
 model_service = ModelService()
 
+# Single-worker executor serializes inference to prevent concurrent GPU access
+_inference_executor = ThreadPoolExecutor(max_workers=1)
+
 # Global calibration pipeline instance
 calibration_pipeline = CalibrationPipeline()
 
@@ -1552,6 +1603,14 @@ async def lifespan(app: FastAPI):
     # Load calibration parameters (NoOp if file doesn't exist)
     calibration_pipeline.load_from_file(CALIBRATION_PARAMS_PATH)
 
+    # Pre-warm inference to initialize CUDA kernels
+    if model_service.is_loaded:
+        try:
+            model_service.analyze("warmup test")
+            logger.info("Pre-warm inference complete")
+        except Exception as e:
+            logger.warning(f"Pre-warm inference failed: {e}")
+
     yield
 
     # Shutdown
@@ -1562,8 +1621,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="PooGuard Model Service",
     description=(
-        "Threat classification service for detecting prompt injection, "
-        "jailbreak attempts, and PII exposure"
+        "Threat classification service for detecting prompt injection, " "jailbreak attempts, and PII exposure"
     ),
     version="1.0.0",
     lifespan=lifespan,
@@ -1578,45 +1636,17 @@ app = FastAPI(
 )
 async def health_check() -> HealthResponse:
     """
-    Check the health status of the service with comprehensive metrics.
+    Check the health status of the service.
 
-    Returns detailed information about:
+    Returns minimal information needed for Docker healthcheck:
     - Service status and model loading state
-    - GPU availability and memory usage
-    - Request processing statistics
-    - Service uptime
+    - Device and GPU availability
     """
-    gpu_available = torch.cuda.is_available()
-
-    # Get GPU information
-    gpu_name = None
-    gpu_memory = GPUMemoryInfo(allocated_mb=0, reserved_mb=0, total_mb=0)
-
-    if gpu_available:
-        gpu_name = torch.cuda.get_device_name(0)
-        gpu_memory = GPUMemoryInfo(
-            allocated_mb=torch.cuda.memory_allocated() / 1024**2,
-            reserved_mb=torch.cuda.memory_reserved() / 1024**2,
-            total_mb=torch.cuda.get_device_properties(0).total_memory / 1024**2,
-        )
-
-    # Get request metrics
-    requests_processed, avg_latency = get_request_metrics()
-
     return HealthResponse(
         status="healthy" if model_service.is_loaded else "unhealthy",
         model_loaded=model_service.is_loaded,
-        model_name=SAFEGUARD_MODELS.get(
-            getattr(model_service, "current_model_size", SAFEGUARD_MODEL_SIZE),
-            MODEL_NAME,
-        ),
         device=str(DEVICE),
-        gpu_available=gpu_available,
-        gpu_name=gpu_name,
-        gpu_memory=gpu_memory,
-        requests_processed=requests_processed,
-        average_latency_ms=avg_latency,
-        uptime_seconds=time.time() - _start_time,
+        gpu_available=torch.cuda.is_available(),
     )
 
 
@@ -1654,6 +1684,7 @@ async def readiness_check() -> ReadyResponse:
     tags=["Health"],
     summary="Prometheus-style metrics endpoint",
     response_class=Response,
+    dependencies=[Depends(require_api_key)],
 )
 async def metrics() -> Response:
     """
@@ -1749,7 +1780,8 @@ async def analyze_text(request: AnalyzeRequest, _key: str = Depends(require_api_
         )
 
     try:
-        result = model_service.analyze(request.text)
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(_inference_executor, model_service.analyze, request.text)
 
         # Record metrics for this request
         record_request_metrics(result.processing_time_ms)
@@ -1762,7 +1794,7 @@ async def analyze_text(request: AnalyzeRequest, _key: str = Depends(require_api_
         logger.error(f"Analysis failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Analysis failed: {str(e)}",
+            detail="Analysis failed",
         ) from e
     except Exception as e:
         logger.error(f"Unexpected error during analysis: {e}")
@@ -1801,7 +1833,8 @@ async def analyze_output(request: OutputAnalyzeRequest, _key: str = Depends(requ
         )
 
     try:
-        result = model_service.analyze_output(request.text)
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(_inference_executor, model_service.analyze_output, request.text)
 
         # Record metrics for this request
         record_request_metrics(result.processing_time_ms)
@@ -1811,7 +1844,7 @@ async def analyze_output(request: OutputAnalyzeRequest, _key: str = Depends(requ
         logger.error(f"Output analysis failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Output analysis failed: {str(e)}",
+            detail="Output analysis failed",
         ) from e
     except Exception as e:
         logger.error(f"Unexpected error during output analysis: {e}")
@@ -1885,22 +1918,43 @@ async def update_config(request: ConfigRequest, _key: str = Depends(require_api_
 
             logger.info(f"Switching safeguard model from {old_size} to {new_size} ({new_model_name})")
             try:
-                # Cleanup existing model
+                # Cleanup existing safeguard model (keep embedding model)
                 if model_service.model is not None:
                     del model_service.model
                     model_service.model = None
                     cleanup_gpu()
 
-                # Load new model
+                # Invalidate cached template overhead since tokenizer changes
+                model_service._template_overhead_tokens = None
+
+                # Load new safeguard model + tokenizer only (skip embedding reload)
                 global MODEL_NAME
                 MODEL_NAME = new_model_name
-                model_service.load_model()
-                logger.info(f"Model switched to {new_model_name}")
+                model_service.tokenizer = AutoTokenizer.from_pretrained(
+                    MODEL_NAME,
+                    trust_remote_code=True,
+                )
+                model_service.model = AutoModelForCausalLM.from_pretrained(
+                    MODEL_NAME,
+                    trust_remote_code=True,
+                    torch_dtype="auto",
+                    device_map="auto" if DEVICE == "cuda" else None,
+                )
+                if DEVICE == "cpu":
+                    model_service.model = model_service.model.to(DEVICE)
+                model_service.model.eval()
+                model_service.is_loaded = True
+                # Pre-warm new model to avoid first-request CUDA kernel penalty
+                try:
+                    model_service.analyze("warmup test")
+                    logger.info(f"Model switched to {new_model_name} (pre-warmed)")
+                except Exception:
+                    logger.info(f"Model switched to {new_model_name}")
             except Exception as e:
                 logger.error(f"Failed to switch model: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to load model {new_model_name}: {str(e)}",
+                    detail="Failed to load model variant",
                 )
 
     current_size = getattr(model_service, "current_model_size", SAFEGUARD_MODEL_SIZE)
@@ -1956,7 +2010,7 @@ async def calibrate(
         logger.error(f"Calibration failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Calibration failed: {str(e)}",
+            detail="Calibration failed",
         ) from e
 
 
@@ -2048,11 +2102,8 @@ async def analyze_batch(request: BatchAnalyzeRequest, _key: str = Depends(requir
     logger.info(f"Starting batch analysis of {total_count} texts")
 
     # Process texts in parallel using thread pool
-    loop = asyncio.get_event_loop()
-    tasks = [
-        loop.run_in_executor(batch_executor, _analyze_single_text, i, text)
-        for i, text in enumerate(texts)
-    ]
+    loop = asyncio.get_running_loop()
+    tasks = [loop.run_in_executor(batch_executor, _analyze_single_text, i, text) for i, text in enumerate(texts)]
 
     results: List[BatchItemResult] = await asyncio.gather(*tasks)
 
@@ -2068,8 +2119,7 @@ async def analyze_batch(request: BatchAnalyzeRequest, _key: str = Depends(requir
     check_and_cleanup_gpu_memory()
 
     logger.info(
-        f"Batch analysis complete: {success_count}/{total_count} successful, "
-        f"time={processing_time_ms:.2f}ms"
+        f"Batch analysis complete: {success_count}/{total_count} successful, " f"time={processing_time_ms:.2f}ms"
     )
 
     return BatchAnalyzeResponse(

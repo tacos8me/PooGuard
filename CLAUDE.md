@@ -62,7 +62,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000  # Requires GPU
 ### Data Flow (LLM Proxy Mode)
 1. External client sends OAI-format request to `POST /v1/chat/completions` with API key
 2. `proxyAuth` middleware authenticates via JWT or API key (SHA-256 lookup in `api_keys` table)
-3. Backend extracts user messages, calls model-service `/analyze` for threat scores
+3. Backend extracts user messages, calls model-service `/analyze` for threat scores (cached via `analyzeTextCached` with Redis)
 4. If blocked → return OAI-formatted error (`content_filter`)
 5. If safe → forward request to configured upstream LLM endpoint
 6. Collect response (streaming SSE or JSON), run egress scan
@@ -93,7 +93,9 @@ uvicorn main:app --host 0.0.0.0 --port 8000  # Requires GPU
 - `migrations/` - Database schema (users, api_keys, request_logs, alerts, firewall_config, audit_logs, egress_logs)
 
 ### Frontend Structure
-- `src/pages/` - Dashboard, Analytics, Settings, Alerts, Login/Register
+- `src/pages/` - Dashboard, Analytics, Settings, Rules, Login/Register
+  - Rules page: Detection thresholds, response actions, and alert configuration
+  - Settings page: Two-column layout — Proxy/Model config (left), System/Testing (right)
 - `src/context/AuthContext.jsx` - JWT auth state and API
 - `src/lib/api.js` - Axios instance with auth interceptor
 - `src/components/Layout.jsx` - Sidebar navigation wrapper
@@ -113,10 +115,16 @@ Frontend connects with JWT in `socket.handshake.auth.token`.
 ### Model Service
 - Runs `openai/gpt-oss-safeguard-20b` (21B MoE, 3.6B active) on GPU
 - Returns `prompt_injection_score`, `jailbreak_score`, `pii_score` (0-1)
-- `semantic_similarity_score` - Embedding-based attack pattern matching
+- `semantic_similarity_score` - Embedding-based attack pattern matching (121 patterns across 18 categories)
 - `/analyze-output` endpoint for LLM output safety checking
 - Model variant (20b/120b) configurable via Settings page or `/config` endpoint
 - Thresholds configured in `firewall_config` table
+- **Performance Optimizations**:
+  - `torch.inference_mode()` for inference (no gradient tracking)
+  - `max_new_tokens=128` (reduced from 256) to minimize generation overhead
+  - Async endpoint handling via `run_in_executor()` to avoid blocking the event loop
+  - Startup pre-warm inference to eliminate cold-start penalty on first request
+  - Template overhead caching for overflow path
 - **Score Calibration**: Platt scaling (logistic sigmoid) applied after raw inference, before threshold comparison
   - `POST /calibrate` fits per-category calibrators from benchmark data
   - `GET /calibration` returns current calibration state
@@ -124,22 +132,22 @@ Frontend connects with JWT in `socket.handshake.auth.token`.
 
 ### Calibrated Threshold Defaults
 
-Default thresholds use the "Balanced" preset (maximize F1 score on 294-example benchmark):
+Default thresholds use the "Balanced" preset (maximize F1 score on 360-example benchmark):
 
 | Category | Default Threshold | F1 Score | Env Override |
 |----------|------------------|----------|-------------|
-| Prompt Injection | 0.85 | 0.831 | `PROMPT_INJECTION_THRESHOLD` |
-| Jailbreak | 0.80 | 0.717 | `JAILBREAK_THRESHOLD` |
-| PII | 0.85 | 0.883 | `PII_THRESHOLD` |
-| Semantic Similarity | 0.35 | 0.863 | `SEMANTIC_SIMILARITY_THRESHOLD` |
+| Prompt Injection | 0.70 | 0.79 | `PROMPT_INJECTION_THRESHOLD` |
+| Jailbreak | 0.70 | 0.65 | `JAILBREAK_THRESHOLD` |
+| PII | 0.70 | 0.89 | `PII_THRESHOLD` |
+| Semantic Similarity | 0.42 | 0.81 | `SEMANTIC_SIMILARITY_THRESHOLD` |
 
-Three preset profiles are available in Settings:
+Three preset profiles are available on the Rules page:
 
-| Preset | PI | JB | PII | Use Case |
-|--------|-----|-----|-----|----------|
-| High Security | 0.50 | 0.50 | 0.50 | Maximize detection, accept more false positives |
-| Balanced | 0.85 | 0.80 | 0.85 | Best F1 score (default) |
-| Low Friction | 0.95 | 0.95 | 0.95 | Minimize false positives, accept missed threats |
+| Preset | PI | JB | PII | Semantic | Use Case |
+|--------|-----|-----|-----|----------|----------|
+| High Security | 0.40 | 0.40 | 0.50 | 0.28 | Maximize detection, accept more false positives |
+| Balanced | 0.70 | 0.70 | 0.70 | 0.42 | Best F1 score (default) |
+| Low Friction | 0.90 | 0.90 | 0.90 | 0.50 | Minimize false positives, accept missed threats |
 
 ### Calibration Benchmarks
 - Benchmark dataset: `model-service/benchmarks/calibration_dataset.json` (294 labeled examples)
@@ -152,7 +160,7 @@ Three preset profiles are available in Settings:
 
 ### Input Protection
 - **Threat Detection**: Prompt injection, jailbreak attempts, PII exposure
-- **Semantic Similarity**: 50+ attack pattern embeddings for evasion detection
+- **Semantic Similarity**: 121 attack pattern embeddings across 18 categories for evasion detection
 - **International PII**: UK NI, NHS, IBAN, Canadian SIN, Australian TFN, passports
 - **Secret Masking**: API keys, AWS credentials, GitHub tokens, JWTs auto-redacted
 
@@ -184,5 +192,6 @@ Environment variables (see `.env.example`):
 - `MODEL_NAME` - Safeguard model HuggingFace name
 - `SAFEGUARD_MODEL_SIZE` - Model variant: `20b` or `120b`
 - `HF_TOKEN` - HuggingFace token for model download
+- `PYTORCH_ALLOC_CONF` - PyTorch CUDA memory allocator settings (e.g., `expandable_segments:True`)
 
 Default credentials (dev): `admin@clawguard.local` / `admin123`

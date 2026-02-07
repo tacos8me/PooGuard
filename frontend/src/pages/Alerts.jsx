@@ -1268,8 +1268,8 @@ function Alerts() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">Rules</h1>
-          <p className="text-sm text-zinc-500 mt-1 font-mono">Detection thresholds, response actions, and alert rules</p>
+          <h1 className="text-2xl font-bold text-dark-100 tracking-tight">Rules</h1>
+          <p className="text-dark-500 text-sm mt-1">Detection thresholds, response actions, and alert rules</p>
         </div>
         <div className="flex items-center gap-3">
           {user?.role === 'admin' && (

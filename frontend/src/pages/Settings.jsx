@@ -250,7 +250,7 @@ function Settings() {
   if (user?.role !== 'admin') {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-dark-100 font-mono tracking-tight">Settings</h1>
+        <h1 className="text-2xl font-bold text-dark-100 tracking-tight">Settings</h1>
         <div className="bg-dark-900 border border-dark-700 rounded p-8 text-center">
           <svg className="mx-auto h-12 w-12 text-red-500/60 mb-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
@@ -279,12 +279,12 @@ function Settings() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-dark-100 font-mono tracking-tight">
-            Firewall Settings
+          <h1 className="text-2xl font-bold text-dark-100 tracking-tight">
+            Settings
           </h1>
           <p className="text-dark-500 mt-1 text-sm">
             Configure model endpoints, proxy keys, and compliance settings

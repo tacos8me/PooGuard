@@ -16,30 +16,29 @@ class TestHealthEndpoint:
         assert response.status_code == 200
 
     def test_health_response_structure(self, client: TestClient) -> None:
-        """Test that /health endpoint returns the expected response structure."""
+        """Test that /health endpoint returns the simplified response structure."""
         response = client.get("/health")
         data = response.json()
 
         # Check all required fields are present
         assert "status" in data
         assert "model_loaded" in data
-        assert "model_name" in data
         assert "device" in data
         assert "gpu_available" in data
-        assert "gpu_memory" in data
-        assert "requests_processed" in data
-        assert "average_latency_ms" in data
-        assert "uptime_seconds" in data
 
         # Check field types
         assert isinstance(data["status"], str)
         assert isinstance(data["model_loaded"], bool)
-        assert isinstance(data["model_name"], str)
         assert isinstance(data["device"], str)
         assert isinstance(data["gpu_available"], bool)
-        assert isinstance(data["requests_processed"], int)
-        assert isinstance(data["average_latency_ms"], float)
-        assert isinstance(data["uptime_seconds"], float)
+
+        # Verify sensitive fields are NOT present
+        assert "model_name" not in data
+        assert "gpu_name" not in data
+        assert "gpu_memory" not in data
+        assert "requests_processed" not in data
+        assert "average_latency_ms" not in data
+        assert "uptime_seconds" not in data
 
     def test_health_status_healthy_when_model_loaded(self, client: TestClient) -> None:
         """Test that status is 'healthy' when model is loaded."""
@@ -48,17 +47,6 @@ class TestHealthEndpoint:
 
         assert data["status"] == "healthy"
         assert data["model_loaded"] is True
-
-    def test_health_gpu_memory_info(self, client: TestClient) -> None:
-        """Test that gpu_memory contains expected fields."""
-        response = client.get("/health")
-        data = response.json()
-
-        assert "gpu_memory" in data
-        gpu_mem = data["gpu_memory"]
-        assert "allocated_mb" in gpu_mem
-        assert "reserved_mb" in gpu_mem
-        assert "total_mb" in gpu_mem
 
     def test_health_device_is_valid(self, client: TestClient) -> None:
         """Test that device is a valid value (cpu or cuda)."""
@@ -129,9 +117,7 @@ class TestConfigEndpoint:
         """Test that setting the same variant again does not cause errors."""
         original_size = model_service.current_model_size
 
-        response = client.post(
-            "/config", json={"safeguard_model": original_size}
-        )
+        response = client.post("/config", json={"safeguard_model": original_size})
         assert response.status_code == 200
 
         data = response.json()

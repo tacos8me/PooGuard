@@ -6,9 +6,14 @@ const crypto = require('crypto');
 const config = require('../config');
 
 const ALGORITHM = 'aes-256-gcm';
-const SALT = process.env.ENCRYPTION_SALT || 'pooguard-encryption-salt';
+const SALT = process.env.ENCRYPTION_SALT || (() => {
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('WARNING: ENCRYPTION_SALT not set. Set it in production for key isolation.');
+  }
+  return 'pooguard-encryption-salt';
+})();
 const IV_LENGTH = 12;
-const AUTH_TAG_LENGTH = 16;
+// GCM auth tag length: 16 bytes (default)
 
 let derivedKey = null;
 
@@ -58,7 +63,7 @@ function decrypt(encrypted) {
     decrypted += decipher.final('utf8');
 
     return decrypted;
-  } catch (err) {
+  } catch (_err) {
     // Decryption failed — key may have changed or data is corrupt
     return null;
   }
