@@ -1,49 +1,74 @@
 <div align="center">
 
-# PooGuard
+![PooGuard](docs/poo.png)
 
-**Real-time threat detection for every LLM request.**
+**Self-hosted LLM firewall with on-device GPU threat detection.**
+
+Analyze every message for prompt injection, jailbreaks, PII leakage, and semantic evasion attacks
+using a real 21B-parameter model — not regex, not keyword matching.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-690%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-696%20passing-brightgreen.svg)](#testing)
+[![Python](https://img.shields.io/badge/python-3.12-3776AB.svg)](https://python.org)
+[![Node](https://img.shields.io/badge/node-%3E%3D18-339933.svg)](https://nodejs.org)
 [![Docker](https://img.shields.io/badge/docker-compose-2496ED.svg)](#quick-start)
-[![GPU](https://img.shields.io/badge/GPU-CUDA%2012.8-76B900.svg)](#prerequisites)
+[![CUDA](https://img.shields.io/badge/CUDA-12.8-76B900.svg)](#prerequisites)
+
+[Quick Start](#quick-start) &bull; [Connect Clients](#connecting-chat-clients) &bull; [Configuration](#configuration) &bull; [Deployment](DEPLOYMENT.md) &bull; [Security](docs/SECURITY_ASSESSMENT.md)
 
 </div>
 
 ---
 
-<div align="center">
+## Why PooGuard?
 
-![PooGuard Dashboard](docs/poo.png)
+Most LLM security tools rely on pattern matching or cloud-hosted classifiers. PooGuard runs a 21-billion parameter MoE safeguard model (3.6B active) directly on your GPU — every request scored locally, nothing leaves your infrastructure. Deploy it as a drop-in OpenAI-compatible proxy: point SillyTavern, Open WebUI, Chatbox, or any client at PooGuard and every request is analyzed, scored, and logged with zero changes to your setup.
 
-</div>
+### Threat Detection
 
-PooGuard is an open-source LLM firewall that sits between your chat clients and upstream language models, analyzing every message for prompt injection, jailbreak attempts, PII leakage, and semantic evasion attacks. It uses a real 21-billion parameter MoE model running on-device GPU inference — not regex, not keyword matching — to score threats in real time, blocking or flagging dangerous inputs before they reach your LLM.
+- **ML-Powered Classification** — Per-category confidence scores for prompt injection, jailbreak, and PII threats. Calibrated against a 360-example benchmark dataset with F1 scores of 0.79 / 0.65 / 0.89.
+- **Semantic Evasion Detection** — 121 attack pattern embeddings across 18 categories catch obfuscated and novel attacks that keyword filters miss.
+- **Input Deobfuscation** — Decodes base64, hex, URL encoding, Unicode homoglyphs, l33tspeak, zero-width characters, and whitespace insertion before analysis.
 
-Deploy it as a drop-in OAI-compatible proxy. Point SillyTavern, Open WebUI, Chatbox, or any OpenAI-compatible client at PooGuard, and every request gets analyzed, scored, and logged with zero changes to your existing setup.
+### Defense in Depth
 
-## Key Features
+- **Egress Monitoring** — Scans every LLM response for leaked secrets, PII, and system prompt disclosure. Secrets are redacted automatically.
+- **Session Tracking** — Cumulative threat scoring with 30-minute half-life decay detects slow-burn attacks spread across multiple messages.
+- **Secret Masking** — API keys, AWS credentials, GitHub tokens, and JWTs are auto-redacted in logs. Every admin action is recorded in an immutable audit trail.
 
-- **ML-Powered Threat Classification** — A 21B-parameter MoE safeguard model (3.6B active) runs on your GPU, classifying prompt injection, jailbreak, and PII threats with calibrated confidence scores. No cloud API calls, no third-party dependencies.
+### Operations
 
-- **OAI-Compatible Proxy** — Drop-in replacement for any OpenAI base URL. External clients authenticate with API keys, and PooGuard transparently analyzes, blocks, or forwards every request to your upstream LLM.
+- **OAI-Compatible Proxy** — Drop-in replacement for any OpenAI base URL. Authenticate with API keys, and PooGuard transparently analyzes, blocks, or forwards every request.
+- **Real-Time Dashboard** — Live WebSocket feed with per-category threat scores, timeline charts, analytics, and hourly distribution views.
+- **Configurable Presets** — Three calibrated profiles: High Security, Balanced (default), and Low Friction. Or set custom thresholds per category.
+- **Alert System** — Six alert types (threshold, rate, session_threat, access_pattern, config_change, repeat_block) with real-time notifications.
 
-- **Semantic Evasion Detection** — 121 attack pattern embeddings across 18 categories (prompt injection, persona hijacking, data exfiltration, agent-to-agent attacks, tool-use injection, and more) catch obfuscated and novel attacks that keyword filters miss.
+## Quick Start
 
-- **Input Deobfuscation** — Decodes base64, hex, URL encoding, Unicode homoglyphs, l33tspeak, zero-width characters, and whitespace insertion before analysis. Attackers can't hide behind encoding tricks.
+> [!NOTE]
+> Requires an **NVIDIA GPU** with 16 GB+ VRAM (RTX 4080 or better). First run downloads the ~13 GB model — cached in a Docker volume for subsequent starts.
 
-- **Egress Monitoring** — Scans every LLM response for leaked secrets, PII, and system prompt disclosure before it reaches the client. Secrets are redacted automatically.
+```bash
+git clone https://github.com/tacos8me/PooGuard.git
+cd PooGuard
+cp .env.example .env
+# Edit .env — set at minimum: HF_TOKEN, JWT_SECRET, DB_PASSWORD
+docker compose up
+```
 
-- **Real-Time Dashboard** — Live WebSocket feed showing every request with per-category threat scores (INJ/JB/PII/SEM), timeline charts, threat breakdown analytics, and hourly distribution views.
+| Service   | URL                      |
+|-----------|--------------------------|
+| Dashboard | http://localhost:3000     |
+| API       | http://localhost:3001     |
+| Proxy     | http://localhost:3001/v1  |
 
-- **Configurable Threshold Presets** — Three calibrated profiles out of the box: High Security (maximize detection), Balanced (best F1: 0.79/0.65/0.89/0.81), and Low Friction (minimize false positives). Or set custom thresholds per category.
+Default login: `admin@clawguard.local` with a randomly generated password (printed to console on first seed, or set `ADMIN_PASSWORD` env var).
 
-- **Session Threat Tracking** — Cumulative threat scoring with 30-minute half-life decay detects slow-burn attacks that spread malicious intent across multiple messages.
+### Prerequisites
 
-- **Secret Masking & Audit Trail** — API keys, AWS credentials, GitHub tokens, and JWTs are auto-redacted in logs. Every admin action is recorded in an immutable audit log with before/after values.
-
-- **Alert System** — Six alert types (threshold, rate, session_threat, access_pattern, config_change, repeat_block) with real-time WebSocket notifications to your dashboard.
+- **Docker** and **Docker Compose v2** ([install guide](https://docs.docker.com/engine/install/))
+- **NVIDIA Container Toolkit** for GPU passthrough ([install guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html))
+- **HuggingFace account** — accept the [model license](https://huggingface.co/openai/gpt-oss-safeguard-20b) before first run
 
 ## Request Flow
 
@@ -56,55 +81,30 @@ Request ➜ Auth ➜ Extract ➜ Normalize ➜ Classify ➜ Evaluate ➜ Forward
                                                    Client  ◀── Egress Scan
 ```
 
-1. **Authentication** — `/v1/chat/completions` accepts JWT tokens or PooGuard API keys (`sk-pg-*`). The `proxyAuth` middleware validates credentials via SHA-256 hash lookup.
+<details>
+<summary>Detailed pipeline steps</summary>
+
+1. **Authentication** — `/v1/chat/completions` accepts JWT tokens or PooGuard API keys (`sk-pg-*`). Credentials validated via SHA-256 hash lookup.
 2. **Rate Limiting** — User-based tiered limits (admin: 100/min, API key: 60/min, viewer: 30/min, anonymous: 15/min) using Redis-backed sliding windows.
-3. **Text Extraction** — User messages are extracted from the OpenAI-format `messages` array, including multi-part content.
+3. **Text Extraction** — User messages extracted from the OpenAI-format `messages` array, including multi-part content.
 4. **Input Normalization** — Multi-layer deobfuscation: invisible Unicode stripping, NFKC normalization, homoglyph replacement, whitespace collapse, iterative decoding (base64, hex, URL, l33t, ROT13).
-5. **Threat Classification** — The safeguard model runs inference on normalized text, returning per-category scores for prompt injection, jailbreak, and PII.
+5. **Threat Classification** — Safeguard model runs inference on normalized text, returning per-category scores.
 6. **Semantic Similarity** — Input embedding compared against 121 attack pattern embeddings across 18 categories.
 7. **Threshold Evaluation** — Calibrated scores compared against configurable thresholds. Each category independently triggers block, flag, or allow.
-8. **Forward or Block** — Safe requests forwarded to upstream LLM. Both streaming (SSE) and non-streaming responses supported.
+8. **Forward or Block** — Safe requests forwarded to upstream LLM. Both streaming (SSE) and non-streaming supported.
 9. **Egress Monitoring** — Response body scanned for leaked secrets, PII, and sensitive data before delivery.
-10. **Event Broadcast** — Request logged to PostgreSQL, event published to Redis, dashboard updated via WebSocket in real time.
+10. **Event Broadcast** — Logged to PostgreSQL, published to Redis, dashboard updated via WebSocket in real time.
 
-## Prerequisites
-
-- **NVIDIA GPU** with 16 GB+ VRAM (RTX 4080 or better; RTX 5090 recommended)
-- **Docker** and **Docker Compose v2** ([install guide](https://docs.docker.com/engine/install/))
-- **NVIDIA Container Toolkit** for GPU passthrough ([install guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html))
-- **HuggingFace account** with an access token — accept the [model license](https://huggingface.co/openai/gpt-oss-safeguard-20b) before first run
-
-## Quick Start
-
-```bash
-git clone https://github.com/tacos8me/PooGuard.git
-cd PooGuard
-cp .env.example .env
-# Edit .env -- set at minimum: HF_TOKEN, JWT_SECRET, DB_PASSWORD
-docker compose up            # first run downloads the ~13 GB model
-```
-
-| Service   | URL                          |
-|-----------|------------------------------|
-| Dashboard | http://localhost:3000         |
-| API       | http://localhost:3001         |
-| Proxy     | http://localhost:3001/v1      |
-
-Default login: `admin@clawguard.local` / (randomly generated -- check seed console output, or set `ADMIN_PASSWORD` env var)
-
-> **Tip:** The model download is cached in a Docker volume. Subsequent starts are fast.
+</details>
 
 ## Connecting Chat Clients
 
-PooGuard exposes an OpenAI-compatible proxy at `/v1`. Any client that supports a custom OpenAI base URL works out of the box.
+PooGuard exposes an OpenAI-compatible proxy at `/v1`. Any client that supports a custom base URL works out of the box.
 
-### Create an API Key
-
-Log in to the dashboard, go to **Settings > API Keys**, and create a key. It will look like `sk-pg-<hex chars>`. Copy it immediately — it is shown only once.
-
-### curl
+**Create an API key:** Log in to the dashboard, go to **Settings > API Keys**, and create a key (`sk-pg-<hex>`). Copy it immediately — shown only once.
 
 ```bash
+# curl
 curl http://localhost:3001/v1/chat/completions \
   -H "Authorization: Bearer sk-pg-YOUR_KEY" \
   -H "Content-Type: application/json" \
@@ -114,27 +114,29 @@ curl http://localhost:3001/v1/chat/completions \
   }'
 ```
 
-### SillyTavern
+```bash
+# Any OAI-compatible client
+export OPENAI_BASE_URL=http://your-server:3001/v1
+export OPENAI_API_KEY=sk-pg-YOUR_KEY
+```
 
+<details>
+<summary>SillyTavern / Open WebUI setup</summary>
+
+**SillyTavern:**
 1. Open **Settings > API Connections**
 2. Set API type to **Chat Completion (OpenAI)**
 3. Set base URL to `http://your-server:3001/v1`
 4. Paste your `sk-pg-` API key
-5. Pick any model — PooGuard forwards to whatever upstream you configured
+5. Pick any model — PooGuard forwards to your upstream
 
-### Open WebUI
-
+**Open WebUI:**
 1. Go to **Settings > Connections**
 2. Add an OpenAI-compatible connection
 3. Set URL to `http://your-server:3001/v1`
 4. Paste your API key
 
-### Any OAI-Compatible Client
-
-```bash
-export OPENAI_BASE_URL=http://your-server:3001/v1
-export OPENAI_API_KEY=sk-pg-YOUR_KEY
-```
+</details>
 
 ## Configuration
 
@@ -145,34 +147,54 @@ export OPENAI_API_KEY=sk-pg-YOUR_KEY
 | `HF_TOKEN` | Yes | — | HuggingFace token for model download |
 | `JWT_SECRET` | Yes | — | Token signing key (min 32 chars) |
 | `DB_PASSWORD` | Yes | — | PostgreSQL password |
+| `REDIS_PASSWORD` | No | `redis-dev-password` | Redis authentication password |
 | `MODEL_NAME` | No | `openai/gpt-oss-safeguard-20b` | HuggingFace model name |
 | `SAFEGUARD_MODEL_SIZE` | No | `20b` | Model variant: `20b` or `120b` |
 | `MODEL_SERVICE_API_KEY` | No | — | Backend-to-model-service auth key |
-| `ALLOWED_ORIGINS` | No | `http://localhost:3000,http://localhost:5173` | CORS allowed origins |
+| `ALLOWED_ORIGINS` | No | `localhost:3000,5173` | CORS allowed origins |
 
 ### Detection Thresholds
 
-Tune detection sensitivity from the dashboard **Settings** page. Three built-in presets:
+Tune detection sensitivity from the dashboard **Settings** page:
 
-| Preset | Prompt Injection | Jailbreak | PII | Semantic |
-|--------|-----------------|-----------|-----|----------|
-| **Balanced** (default) | 0.70 | 0.70 | 0.70 | 0.42 |
-| **High Security** | 0.40 | 0.40 | 0.50 | 0.28 |
-| **Low Friction** | 0.90 | 0.90 | 0.90 | 0.50 |
+| Preset | Prompt Injection | Jailbreak | PII | Semantic | Use Case |
+|--------|:---:|:---:|:---:|:---:|----------|
+| **High Security** | 0.40 | 0.40 | 0.50 | 0.28 | Maximize detection, accept more false positives |
+| **Balanced** | 0.70 | 0.70 | 0.70 | 0.42 | Best F1 score (default) |
+| **Low Friction** | 0.90 | 0.90 | 0.90 | 0.50 | Minimize false positives |
 
-Lower thresholds = more aggressive blocking. The model produces bimodal scores (near 0.0 or 0.8–0.95), so small threshold changes in the middle range have little practical effect.
+> [!TIP]
+> The model produces bimodal scores (near 0.0 or 0.8–0.95), so small threshold changes in the middle range have little practical effect. Lower thresholds = more aggressive blocking.
+
+## Testing
+
+```bash
+cd backend && npx jest --no-coverage      # 449 tests
+cd model-service && python -m pytest tests/ -v  # 216 tests
+cd frontend && npx vitest run             # 31 tests
+```
+
+| Suite | Framework | Tests | Coverage |
+|-------|-----------|------:|----------|
+| Backend | Jest + Supertest | 449 | Routes, middleware, services, utilities |
+| Model Service | pytest | 216 | Inference, normalization, semantic similarity, API |
+| Frontend | Vitest | 31 | Components, auth flows, settings |
 
 ## Development
 
-### Running with Docker (recommended)
+<details>
+<summary>Running with Docker (recommended)</summary>
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 ```
 
-This mounts source directories for hot reload — backend with nodemon, frontend with Vite HMR, model service with live `main.py` mounting. Dev mode also exposes PostgreSQL (5432) and Redis (6379) for direct access.
+Mounts source directories for hot reload — backend with nodemon, frontend with Vite HMR, model service with live `main.py` mounting. Dev mode also exposes PostgreSQL (5432), Redis (6379), and model-service (8000) for direct access.
 
-### Running Services Individually
+</details>
+
+<details>
+<summary>Running services individually</summary>
 
 ```bash
 # Backend
@@ -186,26 +208,10 @@ cd model-service && pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-## Testing
+</details>
 
-```bash
-# Backend — 442 tests
-cd backend && npx jest --no-coverage
-
-# Model service — 217 tests
-cd model-service && python -m pytest tests/ -v
-
-# Frontend — 31 tests
-cd frontend && npx vitest run
-```
-
-| Suite | Framework | Tests | Coverage |
-|-------|-----------|-------|----------|
-| Backend | Jest + Supertest | 442 | Routes, middleware, services, utilities |
-| Model Service | pytest | 217 | Inference, normalization, semantic similarity, API |
-| Frontend | Vitest | 31 | Components, auth flows, settings |
-
-## Tech Stack
+<details>
+<summary>Tech stack</summary>
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
@@ -220,19 +226,13 @@ cd frontend && npx vitest run
 | Frontend | React 18, Vite 5, TailwindCSS 3 | Monitoring dashboard |
 | Charts | Recharts 2 | Analytics visualizations |
 | Security | Helmet, CORS, CSRF | HTTP hardening |
-| Containerization | Docker Compose | Multi-service orchestration with GPU passthrough |
+| Infrastructure | Docker Compose | Multi-service orchestration with GPU passthrough |
 
-## Deployment
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for production deployment with TLS/HTTPS, database backups, and infrastructure hardening.
-
-## Security
-
-See [docs/SECURITY_ASSESSMENT.md](docs/SECURITY_ASSESSMENT.md) for the full threat model, benchmark results, and implementation status.
+</details>
 
 ## Contributing
 
-Contributions are welcome. Please open an issue first to discuss what you'd like to change.
+Contributions welcome. Please open an issue first to discuss what you'd like to change.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/my-change`)
