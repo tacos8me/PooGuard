@@ -62,7 +62,7 @@ docker compose up
 | API       | http://localhost:3001     |
 | Proxy     | http://localhost:3001/v1  |
 
-Default login: `admin@clawguard.local` with a randomly generated password (printed to console on first seed, or set `ADMIN_PASSWORD` env var).
+Default login: `admin@pooguard.local` with a randomly generated password (printed to console on first seed, or set `ADMIN_PASSWORD` env var).
 
 ### Prerequisites
 

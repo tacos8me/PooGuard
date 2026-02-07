@@ -202,4 +202,4 @@ Environment variables (see `.env.example`):
 - `HF_TOKEN` - HuggingFace token for model download
 - `PYTORCH_ALLOC_CONF` - PyTorch CUDA memory allocator settings (e.g., `expandable_segments:True,max_split_size_mb:256,garbage_collection_threshold:0.8`)
 
-Default credentials (dev): `admin@clawguard.local` / (randomly generated -- check seed console output)
+Default credentials (dev): `admin@pooguard.local` / (randomly generated -- check seed console output)

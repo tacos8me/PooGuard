@@ -6,13 +6,13 @@ exports.seed = async function(knex) {
   }
 
   // Create default admin user
-  const adminExists = await knex('users').where({ email: 'admin@clawguard.local' }).first();
+  const adminExists = await knex('users').where({ email: 'admin@pooguard.local' }).first();
 
   if (!adminExists) {
     const generatedPassword = require('crypto').randomBytes(16).toString('hex');
     const defaultPassword = process.env.ADMIN_PASSWORD || generatedPassword;
     const passwordHash = await bcrypt.hash(defaultPassword, 12);
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@clawguard.local';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@pooguard.local';
     await knex('users').insert({
       email: adminEmail,
       password_hash: passwordHash,
