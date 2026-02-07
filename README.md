@@ -27,7 +27,7 @@ Most LLM security tools rely on pattern matching or cloud-hosted classifiers. Po
 ### Threat Detection
 
 - **ML-Powered Classification** — Per-category confidence scores for prompt injection, jailbreak, and PII threats. Calibrated against a 360-example benchmark dataset with F1 scores of 0.79 / 0.65 / 0.89.
-- **Semantic Evasion Detection** — 121 attack pattern embeddings across 18 categories catch obfuscated and novel attacks that keyword filters miss.
+- **Semantic Evasion Detection** — 182 attack pattern embeddings across 28 categories catch obfuscated and novel attacks that keyword filters miss.
 - **Input Deobfuscation** — Decodes base64, hex, URL encoding, Unicode homoglyphs, l33tspeak, zero-width characters, and whitespace insertion before analysis.
 
 ### Defense in Depth
@@ -89,7 +89,7 @@ Request ➜ Auth ➜ Extract ➜ Normalize ➜ Classify ➜ Evaluate ➜ Forward
 3. **Text Extraction** — User messages extracted from the OpenAI-format `messages` array, including multi-part content.
 4. **Input Normalization** — Multi-layer deobfuscation: invisible Unicode stripping, NFKC normalization, homoglyph replacement, whitespace collapse, iterative decoding (base64, hex, URL, l33t, ROT13).
 5. **Threat Classification** — Safeguard model runs inference on normalized text, returning per-category scores.
-6. **Semantic Similarity** — Input embedding compared against 121 attack pattern embeddings across 18 categories.
+6. **Semantic Similarity** — Input embedding compared against 182 attack pattern embeddings across 28 categories.
 7. **Threshold Evaluation** — Calibrated scores compared against configurable thresholds. Each category independently triggers block, flag, or allow.
 8. **Forward or Block** — Safe requests forwarded to upstream LLM. Both streaming (SSE) and non-streaming supported.
 9. **Egress Monitoring** — Response body scanned for leaked secrets, PII, and sensitive data before delivery.

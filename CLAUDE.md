@@ -115,7 +115,7 @@ Frontend connects with JWT in `socket.handshake.auth.token`.
 ### Model Service
 - Runs `openai/gpt-oss-safeguard-20b` (21B MoE, 3.6B active) on GPU
 - Returns `prompt_injection_score`, `jailbreak_score`, `pii_score` (0-1)
-- `semantic_similarity_score` - Embedding-based attack pattern matching (121 patterns across 18 categories)
+- `semantic_similarity_score` - Embedding-based attack pattern matching (182 patterns across 28 categories)
 - `/analyze-output` endpoint for LLM output safety checking
 - Model variant (20b/120b) configurable via Settings page or `/config` endpoint
 - Thresholds configured in `firewall_config` table
@@ -168,7 +168,7 @@ Three preset profiles are available on the Rules page:
 
 ### Input Protection
 - **Threat Detection**: Prompt injection, jailbreak attempts, PII exposure
-- **Semantic Similarity**: 121 attack pattern embeddings across 18 categories for evasion detection
+- **Semantic Similarity**: 182 attack pattern embeddings across 28 categories for evasion detection
 - **International PII**: UK NI, NHS, IBAN, Canadian SIN, Australian TFN, passports
 - **Secret Masking**: API keys, AWS credentials, GitHub tokens, JWTs auto-redacted
 
