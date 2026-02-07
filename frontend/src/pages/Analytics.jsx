@@ -104,9 +104,9 @@ function BarChartTooltip({ active, payload, label, formatLabel }) {
 // Summary stat card for the top metrics row
 function StatCard({ label, value, color }) {
   return (
-    <div className="bg-dark-900 border border-dark-700 p-4">
-      <p className="text-dark-500 text-xs font-mono uppercase tracking-wider mb-1">{label}</p>
-      <p className={clsx('text-2xl font-bold font-mono', color || 'text-dark-100')}>{value}</p>
+    <div className="bg-dark-900 border border-dark-800 rounded-lg px-5 py-4 flex flex-col gap-1 min-w-0">
+      <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">{label}</span>
+      <span className={clsx('text-2xl font-bold font-mono', color || 'text-dark-100')}>{value}</span>
     </div>
   );
 }

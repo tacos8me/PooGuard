@@ -343,17 +343,17 @@ function Sessions() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <div className="bg-dark-900 border border-dark-700 p-4">
-          <p className="text-dark-500 text-xs font-mono uppercase tracking-wider mb-1">Active Sessions</p>
-          <p className="text-2xl font-bold font-mono text-primary-400">{sessions.length}</p>
+        <div className="bg-dark-900 border border-dark-800 rounded-lg px-5 py-4 flex flex-col gap-1 min-w-0">
+          <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Active Sessions</span>
+          <span className="text-2xl font-bold font-mono text-primary-400">{sessions.length}</span>
         </div>
-        <div className="bg-dark-900 border border-dark-700 p-4">
-          <p className="text-dark-500 text-xs font-mono uppercase tracking-wider mb-1">With Alerts</p>
-          <p className="text-2xl font-bold font-mono text-red-400">{sessions.filter(s => s.alertTriggered).length}</p>
+        <div className="bg-dark-900 border border-dark-800 rounded-lg px-5 py-4 flex flex-col gap-1 min-w-0">
+          <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">With Alerts</span>
+          <span className="text-2xl font-bold font-mono text-red-400">{sessions.filter(s => s.alertTriggered).length}</span>
         </div>
-        <div className="bg-dark-900 border border-dark-700 p-4">
-          <p className="text-dark-500 text-xs font-mono uppercase tracking-wider mb-1">Above Threshold</p>
-          <p className="text-2xl font-bold font-mono text-amber-400">{sessions.filter(s => s.cumulativeScore >= threshold).length}</p>
+        <div className="bg-dark-900 border border-dark-800 rounded-lg px-5 py-4 flex flex-col gap-1 min-w-0">
+          <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Above Threshold</span>
+          <span className="text-2xl font-bold font-mono text-amber-400">{sessions.filter(s => s.cumulativeScore >= threshold).length}</span>
         </div>
       </div>
 

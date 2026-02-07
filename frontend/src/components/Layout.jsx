@@ -140,7 +140,7 @@ function Layout() {
           aria-label="Main navigation"
         >
           {/* Left: Logo */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 h-full">
             <div className="flex items-baseline gap-1.5">
               <span className="font-mono text-sm tracking-tight">
                 <span role="img" aria-label="poo">&#x1F4A9;</span>{' '}
@@ -153,14 +153,14 @@ function Layout() {
             </div>
 
             {/* Desktop nav links */}
-            <div className="hidden sm:flex items-center gap-0.5">
+            <div className="hidden sm:flex items-center gap-0.5 h-full">
               {navigation.map((item) => (
                 <NavLink
                   key={item.name}
                   to={item.href}
                   className={({ isActive }) => {
                     const base =
-                      'flex items-center gap-1.5 px-3 py-1 text-xs font-mono uppercase tracking-wider transition-colors duration-150 border-b-2 focus:outline-none focus:ring-1 focus:ring-primary-500/50 focus:rounded-sm';
+                      'flex items-center gap-1.5 px-3 text-xs font-mono uppercase tracking-wider transition-colors duration-150 border-b-2 focus:outline-none focus:ring-1 focus:ring-primary-500/50 focus:rounded-sm h-full';
                     if (isActive) {
                       return `${base} border-primary-500 text-primary-400 bg-primary-500/5`;
                     }
