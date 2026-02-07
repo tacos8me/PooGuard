@@ -43,6 +43,20 @@ Most LLM security tools rely on pattern matching or cloud-hosted classifiers. Po
 - **Configurable Presets** — Three calibrated profiles: High Security, Balanced (default), and Low Friction. Or set custom thresholds per category.
 - **Alert System** — Six alert types (threshold, rate, session_threat, access_pattern, config_change, repeat_block) with real-time notifications.
 
+## Performance
+
+Benchmarked on RTX 5090 (32 GB) with the 20B model in MXFP4 quantization, 360-example dataset:
+
+| Metric | Latency |
+|--------|--------:|
+| Mean | 2.6s |
+| Median | 2.8s |
+| P95 | 3.6s |
+| Clean inputs (avg) | 1.9s |
+| Threat inputs (avg) | 3.1s |
+
+Early-exit stopping cuts clean-input latency nearly in half — most production traffic is clean. Streaming proxy requests begin forwarding immediately; analysis runs in parallel.
+
 ## Quick Start
 
 > [!NOTE]
