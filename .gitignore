@@ -16,6 +16,9 @@ dist/
 build/
 *.egg-info/
 
+# Git hooks
+.husky/
+
 # IDE
 .idea/
 .vscode/

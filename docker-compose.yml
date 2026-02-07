@@ -3,8 +3,6 @@ services:
     build:
       context: ./model-service
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
     environment:
       - MODEL_NAME=${MODEL_NAME:-openai/gpt-oss-safeguard-20b}
       - SAFEGUARD_MODEL_SIZE=${SAFEGUARD_MODEL_SIZE:-20b}
@@ -14,7 +12,7 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       # CUDA 12.8 requires R570+ driver for Blackwell/SM120
       - CUDA_MODULE_LOADING=LAZY
-      - PYTORCH_ALLOC_CONF=expandable_segments:True
+      - PYTORCH_ALLOC_CONF=expandable_segments:True,max_split_size_mb:256,garbage_collection_threshold:0.8
     volumes:
       - model-cache:/home/appuser/.cache/huggingface
     restart: unless-stopped
@@ -45,7 +43,7 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - DATABASE_URL=postgres://clawguard:${DB_PASSWORD}@postgres:5432/clawguard
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis-dev-password}@redis:6379
       - MODEL_SERVICE_URL=http://model-service:8000
       - MODEL_SERVICE_API_KEY=${MODEL_SERVICE_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
@@ -116,7 +114,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes --appendfsync everysec --save 900 1 --save 300 10 --save 60 10000
+    command: redis-server --appendonly yes --appendfsync everysec --save 900 1 --save 300 10 --save 60 10000 --requirepass ${REDIS_PASSWORD:-redis-dev-password}
     volumes:
       - redis-data:/data
     restart: unless-stopped
@@ -125,7 +123,7 @@ services:
         limits:
           memory: 256M
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis-dev-password}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5

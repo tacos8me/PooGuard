@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getCircuitState } = require('../services/modelService');
 const { getCacheStats } = require('../services/redis');
+const { authMiddleware } = require('../middleware/auth');
 
 let db = null;
 let redis = null;
@@ -11,7 +12,32 @@ const initDb = (knex, redisClient) => {
   redis = redisClient;
 };
 
+// Public health endpoint - minimal info only
 router.get('/health', async (req, res) => {
+  let dbHealthy = false;
+  let redisHealthy = false;
+
+  try {
+    await db.raw('SELECT 1');
+    dbHealthy = true;
+  } catch (_err) {
+    // unhealthy
+  }
+
+  try {
+    await redis.ping();
+    redisHealthy = true;
+  } catch (_err) {
+    // unhealthy
+  }
+
+  const healthy = dbHealthy && redisHealthy;
+  const statusCode = healthy ? 200 : 503;
+  res.status(statusCode).json({ status: healthy ? 'ok' : 'unhealthy' });
+});
+
+// Detailed health - requires authentication
+router.get('/health/detail', authMiddleware, async (req, res) => {
   const checks = {
     status: 'healthy',
     timestamp: new Date().toISOString(),

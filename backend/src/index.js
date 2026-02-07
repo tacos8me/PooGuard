@@ -41,7 +41,13 @@ const io = new Server(server, {
 });
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  frameguard: { action: 'deny' },
+}));
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
 
 // CORS: /v1 proxy allows any origin (external chat clients), everything else uses strict config
 const _proxyCors = cors(proxyCorsOptions);

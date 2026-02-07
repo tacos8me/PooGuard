@@ -90,7 +90,7 @@ docker compose up            # first run downloads the ~13 GB model
 | API       | http://localhost:3001         |
 | Proxy     | http://localhost:3001/v1      |
 
-Default login: `admin@clawguard.local` / `admin123`
+Default login: `admin@clawguard.local` / (randomly generated -- check seed console output, or set `ADMIN_PASSWORD` env var)
 
 > **Tip:** The model download is cached in a Docker volume. Subsequent starts are fast.
 

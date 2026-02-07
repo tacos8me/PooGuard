@@ -9,6 +9,7 @@ import asyncio
 import base64
 import codecs
 import gc
+import hmac
 import logging
 import os
 import re
@@ -24,9 +25,10 @@ from typing import List, Optional
 import numpy as np
 import torch
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList
 
 from calibration import CalibrationPipeline
 
@@ -451,15 +453,15 @@ async def require_api_key(
     x_api_key: str | None = Depends(_api_key_header),
 ) -> str:
     """FastAPI dependency that validates API key from Authorization or X-API-Key header."""
-    # Check X-API-Key header first
-    if x_api_key and x_api_key == MODEL_SERVICE_API_KEY:
+    # Check X-API-Key header first (timing-safe comparison)
+    if x_api_key and hmac.compare_digest(x_api_key, MODEL_SERVICE_API_KEY):
         return x_api_key
 
-    # Fall back to Authorization: Bearer <key>
+    # Fall back to Authorization: Bearer <key> (timing-safe comparison)
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
-        if token == MODEL_SERVICE_API_KEY:
+        if hmac.compare_digest(token, MODEL_SERVICE_API_KEY):
             return token
 
     raise HTTPException(
@@ -843,6 +845,39 @@ class BatchAnalyzeResponse(BaseModel):
     processing_time_ms: float = Field(..., description="Total time taken to process the batch in milliseconds")
 
 
+class SafeguardStoppingCriteria(StoppingCriteria):
+    """Stop generation when final JSON verdict is complete."""
+
+    def __init__(self, tokenizer):
+        super().__init__()
+        self.tokenizer = tokenizer
+        self._found_final = False
+
+    def __call__(self, input_ids, scores, **kwargs):
+        if input_ids.shape[1] < 2:
+            return False
+
+        # Efficient: only decode last ~60 tokens to check for "final" marker
+        recent = self.tokenizer.decode(input_ids[0, -60:], skip_special_tokens=False)
+
+        if "final" in recent or self._found_final:
+            self._found_final = True
+            # Check for complete JSON after "final" channel
+            full = self.tokenizer.decode(input_ids[0], skip_special_tokens=False)
+            # Find last JSON object
+            last_open = full.rfind("{")
+            last_close = full.rfind("}")
+            if last_open >= 0 and last_close > last_open:
+                try:
+                    import json as json_mod
+                    json_mod.loads(full[last_open:last_close + 1])
+                    return True  # Valid JSON found — stop generation
+                except (json_mod.JSONDecodeError, ValueError):
+                    pass
+
+        return False
+
+
 class ModelService:
     """Service class for managing the threat detection model."""
 
@@ -855,6 +890,8 @@ class ModelService:
         self.embedding_loaded: bool = False
         self.current_model_size: str = SAFEGUARD_MODEL_SIZE
         self._template_overhead_tokens: Optional[int] = None
+        self._policy_kv_cache = None
+        self._policy_input_length: Optional[int] = None
 
     def load_embedding_model(self) -> None:
         """Load the sentence transformer model for semantic similarity."""
@@ -911,18 +948,37 @@ class ModelService:
                 MODEL_NAME,
                 trust_remote_code=True,
                 torch_dtype="auto",
-                device_map="auto" if DEVICE == "cuda" else None,
+                device_map="cuda:0" if DEVICE == "cuda" else None,
             )
 
             if DEVICE == "cpu":
                 self.model = self.model.to(DEVICE)
 
             self.model.eval()
+
+            # Apply torch.compile for faster inference (Change 5)
+            # Save original forward — revert if compilation fails at runtime
+            self._original_forward = self.model.forward
+            try:
+                self.model.forward = torch.compile(self.model.forward, mode="reduce-overhead")
+                logger.info("torch.compile applied successfully (mode=reduce-overhead)")
+            except Exception as e:
+                logger.warning(f"torch.compile not supported for this model, skipping: {e}")
+                self.model.forward = self._original_forward
+
             self.is_loaded = True
             logger.info(f"Model loaded successfully on {DEVICE}")
 
             # Load embedding model for semantic similarity
             self.load_embedding_model()
+
+            # Eagerly compute template overhead for overflow path (Change 8)
+            try:
+                empty_prompt = self._build_harmony_prompt("")
+                self._template_overhead_tokens = len(self.tokenizer.encode(empty_prompt))
+                logger.debug(f"Template overhead: {self._template_overhead_tokens} tokens")
+            except Exception:
+                pass  # Will compute lazily on first overflow
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             raise RuntimeError(f"Failed to load model: {e}") from e
@@ -997,13 +1053,20 @@ class ModelService:
         if DEVICE == "cuda":
             inputs = {k: v.to(DEVICE) for k, v in inputs.items()}
 
-        with torch.inference_mode():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=128,
-                do_sample=False,
-                pad_token_id=self.tokenizer.eos_token_id,
-            )
+        stopping_criteria = StoppingCriteriaList([SafeguardStoppingCriteria(self.tokenizer)])
+
+        _gpu_semaphore.acquire()
+        try:
+            with torch.inference_mode():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=96,
+                    do_sample=False,
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    stopping_criteria=stopping_criteria,
+                )
+        finally:
+            _gpu_semaphore.release()
 
         # Decode only the generated tokens (skip the input prompt)
         input_length = inputs["input_ids"].shape[1]
@@ -1056,6 +1119,28 @@ class ModelService:
             add_generation_prompt=True,
             reasoning_effort="low",
         )
+
+    def _build_policy_kv_cache(self):
+        """Pre-compute KV cache for system prompt to reuse across requests."""
+        if self.model is None or self.tokenizer is None:
+            return
+        try:
+            system_messages = [{"role": "system", "content": self.SAFETY_POLICY}]
+            system_prompt = self.tokenizer.apply_chat_template(
+                system_messages, tokenize=False, add_generation_prompt=False, reasoning_effort="low",
+            )
+            tokens = self.tokenizer(system_prompt, return_tensors="pt", truncation=False)
+            if DEVICE == "cuda":
+                tokens = {k: v.to(DEVICE) for k, v in tokens.items()}
+            with torch.inference_mode():
+                outputs = self.model(**tokens, use_cache=True)
+            self._policy_kv_cache = outputs.past_key_values
+            self._policy_input_length = tokens["input_ids"].shape[1]
+            logger.info(f"Policy KV cache built: {self._policy_input_length} tokens cached")
+        except Exception as e:
+            logger.warning(f"Policy KV cache not supported, using full prefill: {e}")
+            self._policy_kv_cache = None
+            self._policy_input_length = None
 
     def _parse_safeguard_response(self, response: str) -> dict[str, float]:
         """Parse the safeguard model's Harmony-format response into threat scores.
@@ -1582,6 +1667,10 @@ model_service = ModelService()
 # Single-worker executor serializes inference to prevent concurrent GPU access
 _inference_executor = ThreadPoolExecutor(max_workers=1)
 
+# GPU semaphore serializes model.generate() calls regardless of which executor invokes them
+# (prevents batch_executor threads from hitting GPU concurrently with _inference_executor)
+_gpu_semaphore = threading.Semaphore(1)
+
 # Global calibration pipeline instance
 calibration_pipeline = CalibrationPipeline()
 
@@ -1610,6 +1699,18 @@ async def lifespan(app: FastAPI):
             logger.info("Pre-warm inference complete")
         except Exception as e:
             logger.warning(f"Pre-warm inference failed: {e}")
+            # Revert torch.compile if it caused the failure
+            if hasattr(model_service, '_original_forward') and model_service._original_forward is not None:
+                model_service.model.forward = model_service._original_forward
+                logger.info("Reverted torch.compile — retrying pre-warm with eager mode")
+                try:
+                    model_service.analyze("warmup test")
+                    logger.info("Pre-warm inference complete (eager mode)")
+                except Exception as e2:
+                    logger.warning(f"Pre-warm inference failed even in eager mode: {e2}")
+
+        # Build policy KV cache after warmup
+        model_service._build_policy_kv_cache()
 
     yield
 
@@ -1626,6 +1727,17 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Request body size limit (1MB) to prevent memory exhaustion attacks
+MAX_REQUEST_SIZE = 1 * 1024 * 1024
+
+
+@app.middleware("http")
+async def limit_request_size(request: Request, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > MAX_REQUEST_SIZE:
+        return JSONResponse(status_code=413, content={"detail": "Request body too large"})
+    return await call_next(request)
 
 
 @app.get(
@@ -1833,8 +1945,8 @@ async def analyze_output(request: OutputAnalyzeRequest, _key: str = Depends(requ
         )
 
     try:
-        loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(_inference_executor, model_service.analyze_output, request.text)
+        # analyze_output is pure CPU regex work — no GPU needed, call directly
+        result = model_service.analyze_output(request.text)
 
         # Record metrics for this request
         record_request_metrics(result.processing_time_ms)
@@ -1889,6 +2001,81 @@ async def get_config(_key: str = Depends(require_api_key)) -> ConfigResponse:
     )
 
 
+def _reload_model(new_size: str) -> None:
+    """Reload the safeguard model with a new variant (blocking, run in executor).
+
+    Cleans up the old model, loads the new tokenizer + model, pre-warms inference,
+    and eagerly computes template overhead tokens.
+    """
+    global MODEL_NAME
+    new_model_name = SAFEGUARD_MODELS[new_size]
+
+    # Cleanup existing safeguard model (keep embedding model)
+    if model_service.model is not None:
+        del model_service.model
+        model_service.model = None
+        cleanup_gpu()
+
+    # Invalidate cached template overhead and KV cache since tokenizer/model changes
+    model_service._template_overhead_tokens = None
+    model_service._policy_kv_cache = None
+    model_service._policy_input_length = None
+
+    # Load new safeguard model + tokenizer only (skip embedding reload)
+    MODEL_NAME = new_model_name
+    model_service.tokenizer = AutoTokenizer.from_pretrained(
+        MODEL_NAME,
+        trust_remote_code=True,
+    )
+    model_service.model = AutoModelForCausalLM.from_pretrained(
+        MODEL_NAME,
+        trust_remote_code=True,
+        torch_dtype="auto",
+        device_map="cuda:0" if DEVICE == "cuda" else None,
+    )
+    if DEVICE == "cpu":
+        model_service.model = model_service.model.to(DEVICE)
+    model_service.model.eval()
+
+    # Apply torch.compile for faster inference
+    model_service._original_forward = model_service.model.forward
+    try:
+        model_service.model.forward = torch.compile(model_service.model.forward, mode="reduce-overhead")
+        logger.info("torch.compile applied successfully (mode=reduce-overhead)")
+    except Exception as e:
+        logger.warning(f"torch.compile not supported for this model, skipping: {e}")
+        model_service.model.forward = model_service._original_forward
+
+    model_service.is_loaded = True
+
+    # Pre-warm new model to avoid first-request CUDA kernel penalty
+    try:
+        model_service.analyze("warmup test")
+        logger.info(f"Model switched to {new_model_name} (pre-warmed)")
+    except Exception:
+        # Revert torch.compile if it caused the failure
+        if hasattr(model_service, '_original_forward') and model_service._original_forward is not None:
+            model_service.model.forward = model_service._original_forward
+            logger.info("Reverted torch.compile — retrying with eager mode")
+            try:
+                model_service.analyze("warmup test")
+                logger.info(f"Model switched to {new_model_name} (pre-warmed, eager mode)")
+            except Exception:
+                logger.info(f"Model switched to {new_model_name}")
+        else:
+            logger.info(f"Model switched to {new_model_name}")
+
+    # Eagerly compute template overhead tokens
+    try:
+        empty_prompt = model_service._build_harmony_prompt("")
+        model_service._template_overhead_tokens = len(model_service.tokenizer.encode(empty_prompt))
+    except Exception:
+        pass
+
+    # Build policy KV cache for the new model
+    model_service._build_policy_kv_cache()
+
+
 @app.post(
     "/config",
     response_model=ConfigResponse,
@@ -1914,42 +2101,10 @@ async def update_config(request: ConfigRequest, _key: str = Depends(require_api_
 
         if old_size != new_size:
             model_service.current_model_size = new_size
-            new_model_name = SAFEGUARD_MODELS[new_size]
-
-            logger.info(f"Switching safeguard model from {old_size} to {new_size} ({new_model_name})")
+            logger.info(f"Switching safeguard model from {old_size} to {new_size} ({SAFEGUARD_MODELS[new_size]})")
             try:
-                # Cleanup existing safeguard model (keep embedding model)
-                if model_service.model is not None:
-                    del model_service.model
-                    model_service.model = None
-                    cleanup_gpu()
-
-                # Invalidate cached template overhead since tokenizer changes
-                model_service._template_overhead_tokens = None
-
-                # Load new safeguard model + tokenizer only (skip embedding reload)
-                global MODEL_NAME
-                MODEL_NAME = new_model_name
-                model_service.tokenizer = AutoTokenizer.from_pretrained(
-                    MODEL_NAME,
-                    trust_remote_code=True,
-                )
-                model_service.model = AutoModelForCausalLM.from_pretrained(
-                    MODEL_NAME,
-                    trust_remote_code=True,
-                    torch_dtype="auto",
-                    device_map="auto" if DEVICE == "cuda" else None,
-                )
-                if DEVICE == "cpu":
-                    model_service.model = model_service.model.to(DEVICE)
-                model_service.model.eval()
-                model_service.is_loaded = True
-                # Pre-warm new model to avoid first-request CUDA kernel penalty
-                try:
-                    model_service.analyze("warmup test")
-                    logger.info(f"Model switched to {new_model_name} (pre-warmed)")
-                except Exception:
-                    logger.info(f"Model switched to {new_model_name}")
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(_inference_executor, _reload_model, new_size)
             except Exception as e:
                 logger.error(f"Failed to switch model: {e}")
                 raise HTTPException(
@@ -2054,7 +2209,7 @@ def _analyze_single_text(index: int, text: str) -> BatchItemResult:
             index=index,
             success=False,
             result=None,
-            error=str(e),
+            error="Analysis failed for this text",
         )
 
 

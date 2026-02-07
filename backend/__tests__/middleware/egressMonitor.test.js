@@ -56,7 +56,7 @@ describe('Egress Monitor Middleware', () => {
     });
 
     it('should detect AWS credentials in response', () => {
-      const body = { credentials: 'Access key: AKIAIOSFODNN7EXAMPLE' };
+      const body = { credentials: 'Access key: AKIAEXAMPLE00000FAKE' };
       const result = analyzeResponse(body);
 
       expect(result.hasSensitiveData).toBe(true);
@@ -64,7 +64,7 @@ describe('Egress Monitor Middleware', () => {
     });
 
     it('should detect GitHub tokens in response', () => {
-      const body = { token: 'ghp_123456789012345678901234567890123456' };
+      const body = { token: 'ghp_TESTFAKE000000000000000000000000fake' };
       const result = analyzeResponse(body);
 
       expect(result.hasSensitiveData).toBe(true);

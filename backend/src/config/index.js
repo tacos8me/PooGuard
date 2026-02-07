@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const isDevelopment = process.env.NODE_ENV === 'development';
+const isTest = process.env.NODE_ENV === 'test';
 
 // Only allow fallback values in development mode
 const getConfigValue = (envVar, devFallback) => {
@@ -10,12 +11,20 @@ const getConfigValue = (envVar, devFallback) => {
   return undefined;
 };
 
+// Generate a random JWT secret for dev mode so no static secret is in source
+const getJwtSecret = () => {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  if (isTest) return 'test-only-not-a-real-secret-value-minimum-32-chars-for-validation';
+  if (isDevelopment) return require('crypto').randomBytes(32).toString('hex');
+  return undefined;
+};
+
 module.exports = {
   port: process.env.PORT || 3001,
   nodeEnv: process.env.NODE_ENV || 'development',
 
   database: {
-    url: getConfigValue('DATABASE_URL', 'postgres://clawguard:devpassword@localhost:5432/clawguard_dev')
+    url: getConfigValue('DATABASE_URL', 'postgres://clawguard@localhost:5432/clawguard_dev')
   },
 
   redis: {
@@ -23,7 +32,7 @@ module.exports = {
   },
 
   jwt: {
-    secret: getConfigValue('JWT_SECRET', 'dev-secret-minimum-32-characters-long'),
+    secret: getJwtSecret(),
     accessToken: {
       expiresIn: '15m'
     },

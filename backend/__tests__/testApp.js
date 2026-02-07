@@ -9,7 +9,6 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
 const config = require('../src/config');
-const { checkHealth: checkModelHealth, getCircuitState } = require('../src/services/modelService');
 const { router: authRouter, initDb: initAuthDb } = require('../src/routes/auth');
 
 // Mock tokenService to avoid Redis dependency in tests
@@ -59,15 +58,9 @@ const createTestApp = (db) => {
   app.use(cors());
   app.use(express.json({ limit: '1mb' }));
 
-  // Health check endpoint — mirrors real health.js
+  // Health check endpoint — mirrors real health.js (minimal public response)
   app.get('/health', async (req, res) => {
-    const modelHealthy = await checkModelHealth();
-    res.json({
-      status: 'healthy',
-      modelService: modelHealthy ? 'connected' : 'disconnected',
-      modelServiceCircuit: getCircuitState(),
-      timestamp: new Date().toISOString()
-    });
+    res.json({ status: 'ok' });
   });
 
   // Initialize auth routes with database

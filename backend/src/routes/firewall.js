@@ -38,10 +38,24 @@ const VALID_ACTIONS = ['block', 'flag', 'allow'];
 
 const VALID_PROVIDER_TYPES = ['none', 'openai_compatible'];
 
+let _configCache = null;
+let _configCacheTime = 0;
+const CONFIG_CACHE_TTL = 10000;
+
+const clearConfigCache = () => {
+  _configCache = null;
+  _configCacheTime = 0;
+};
+
 const getFirewallConfig = async () => {
+  if (_configCache && (Date.now() - _configCacheTime) < CONFIG_CACHE_TTL) {
+    return _configCache;
+  }
+
   const configRow = await db('firewall_config').first();
+  let result;
   if (configRow) {
-    return {
+    result = {
       thresholds: {
         promptInjection: parseFloat(configRow.threshold_prompt_injection),
         jailbreak: parseFloat(configRow.threshold_jailbreak),
@@ -64,28 +78,35 @@ const getFirewallConfig = async () => {
       cacheEnabled: configRow.cache_enabled ?? true,
       cacheTtlSeconds: configRow.cache_ttl_seconds ?? 300,
       analysisMode: configRow.analysis_mode || 'sync',
+      _raw: configRow,
+    };
+  } else {
+    result = {
+      thresholds: config.firewall.defaultThresholds,
+      actions: {
+        promptInjection: 'block',
+        jailbreak: 'block',
+        pii: 'flag'
+      },
+      modelConfig: {
+        providerType: 'none',
+        endpointUrl: '',
+        hasApiKey: false,
+        modelName: '',
+      },
+      safeguardModel: '20b',
+      dataRetentionDays: 90,
+      failMode: 'open',
+      cacheEnabled: true,
+      cacheTtlSeconds: 300,
+      analysisMode: 'sync',
+      _raw: null,
     };
   }
-  return {
-    thresholds: config.firewall.defaultThresholds,
-    actions: {
-      promptInjection: 'block',
-      jailbreak: 'block',
-      pii: 'flag'
-    },
-    modelConfig: {
-      providerType: 'none',
-      endpointUrl: '',
-      hasApiKey: false,
-      modelName: '',
-    },
-    safeguardModel: '20b',
-    dataRetentionDays: 90,
-    failMode: 'open',
-    cacheEnabled: true,
-    cacheTtlSeconds: 300,
-    analysisMode: 'sync',
-  };
+
+  _configCache = result;
+  _configCacheTime = Date.now();
+  return result;
 };
 
 /**
@@ -93,7 +114,8 @@ const getFirewallConfig = async () => {
  * Never expose this to the frontend — use getFirewallConfig() for that.
  */
 const getModelConfig = async () => {
-  const configRow = await db('firewall_config').first();
+  const cachedConfig = await getFirewallConfig();
+  const configRow = cachedConfig._raw;
   if (!configRow || configRow.model_provider_type === 'none') {
     return null;
   }
@@ -536,7 +558,8 @@ router.get('/config',
     try {
       const firewallConfig = await getFirewallConfig();
       logger.info('Firewall config accessed', { userId: req.user.id });
-      res.json(firewallConfig);
+      const { _raw, ...clientConfig } = firewallConfig;
+      res.json(clientConfig);
     } catch (error) {
       logger.error('Get config error', { error: error.message, userId: req.user?.id });
       res.status(500).json({ error: 'Failed to get config' });
@@ -674,6 +697,7 @@ router.put('/config',
         await trx('firewall_config').insert(insertData);
       });
 
+      clearConfigCache();
       const newConfig = await getFirewallConfig();
 
       // Notify model-service if safeguard model changed
@@ -693,15 +717,17 @@ router.put('/config',
         }
       }
 
-      // Create audit log entry
+      // Create audit log entry (strip internal _raw from logged values)
+      const { _raw: _oldRaw, ...oldConfigClean } = oldConfig;
+      const { _raw: _newRaw, ...newConfigClean } = newConfig;
       await createAuditLog({
         userId: req.user.id,
         userEmail: req.user.email,
         action: ACTION_TYPES.CONFIG_UPDATE,
         resource: 'firewall_config',
         resourceId: null,
-        oldValue: oldConfig,
-        newValue: newConfig,
+        oldValue: oldConfigClean,
+        newValue: newConfigClean,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent'],
       });
@@ -934,4 +960,4 @@ router.post('/model/test',
   }
 );
 
-module.exports = { router, initDb, getFirewallConfig, getModelConfig, determineAction };
+module.exports = { router, initDb, getFirewallConfig, getModelConfig, determineAction, clearConfigCache };

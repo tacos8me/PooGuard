@@ -386,7 +386,7 @@ class TestSecretDetection:
         """Test detection of AWS access keys."""
         response = client.post(
             "/analyze-output",
-            json={"text": "AWS key: AKIAIOSFODNN7EXAMPLE"},
+            json={"text": "AWS key: AKIAEXAMPLE00000FAKE"},
         )
         data = response.json()
 

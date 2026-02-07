@@ -121,10 +121,18 @@ Frontend connects with JWT in `socket.handshake.auth.token`.
 - Thresholds configured in `firewall_config` table
 - **Performance Optimizations**:
   - `torch.inference_mode()` for inference (no gradient tracking)
-  - `max_new_tokens=128` (reduced from 256) to minimize generation overhead
-  - Async endpoint handling via `run_in_executor()` to avoid blocking the event loop
+  - `torch.compile(model.forward, mode="reduce-overhead")` with try/except fallback
+  - GPU semaphore (`threading.Semaphore(1)`) serializes all GPU access in `_run_inference()`
+  - `SafeguardStoppingCriteria` — early-exit when final JSON verdict is complete
+  - `max_new_tokens=96` (reduced from 256) to minimize generation overhead
+  - `device_map="cuda:0"` instead of `"auto"` — skip accelerate auto-mapping
+  - Async `/analyze` via `run_in_executor()`; `/analyze-output` runs inline (pure CPU regex)
+  - `_reload_model()` runs in executor to prevent 60s event loop block
   - Startup pre-warm inference to eliminate cold-start penalty on first request
-  - Template overhead caching for overflow path
+  - Policy KV cache built at startup (stored, deferred to GPU integration testing)
+  - Template overhead tokens computed eagerly at startup
+  - HTTP keep-alive agents on backend→model-service and backend→upstream proxy connections
+  - In-memory `firewall_config` cache with 10s TTL eliminates per-request DB queries
 - **Score Calibration**: Platt scaling (logistic sigmoid) applied after raw inference, before threshold comparison
   - `POST /calibrate` fits per-category calibrators from benchmark data
   - `GET /calibration` returns current calibration state
@@ -192,6 +200,6 @@ Environment variables (see `.env.example`):
 - `MODEL_NAME` - Safeguard model HuggingFace name
 - `SAFEGUARD_MODEL_SIZE` - Model variant: `20b` or `120b`
 - `HF_TOKEN` - HuggingFace token for model download
-- `PYTORCH_ALLOC_CONF` - PyTorch CUDA memory allocator settings (e.g., `expandable_segments:True`)
+- `PYTORCH_ALLOC_CONF` - PyTorch CUDA memory allocator settings (e.g., `expandable_segments:True,max_split_size_mb:256,garbage_collection_threshold:0.8`)
 
-Default credentials (dev): `admin@clawguard.local` / `admin123`
+Default credentials (dev): `admin@clawguard.local` / (randomly generated -- check seed console output)

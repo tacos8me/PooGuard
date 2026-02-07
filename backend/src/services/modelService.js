@@ -1,8 +1,13 @@
 const axios = require('axios');
+const http = require('http');
+const https = require('https');
 const crypto = require('crypto');
 const config = require('../config');
 const logger = require('./logger');
 const { cacheGet, cacheSet } = require('./redis');
+
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 10 });
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 10 });
 
 // --- Circuit Breaker ---
 const CIRCUIT_STATES = { CLOSED: 'closed', OPEN: 'open', HALF_OPEN: 'half-open' };
@@ -69,7 +74,9 @@ const modelClient = axios.create({
   timeout: 30000,
   headers: config.modelService.apiKey
     ? { 'X-API-Key': config.modelService.apiKey }
-    : {}
+    : {},
+  httpAgent,
+  httpsAgent,
 });
 
 const executeWithCircuitBreaker = async (fn) => {

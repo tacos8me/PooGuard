@@ -2,10 +2,12 @@
 
 services:
   model-service:
+    ports:
+      - "8000:8000"
     environment:
       - SAFEGUARD_MODEL_SIZE=20b
       - MODEL_NAME=openai/gpt-oss-safeguard-20b
-      - PYTORCH_ALLOC_CONF=expandable_segments:True
+      - PYTORCH_ALLOC_CONF=expandable_segments:True,max_split_size_mb:256,garbage_collection_threshold:0.8
     volumes:
       - ./model-service/main.py:/app/main.py
 

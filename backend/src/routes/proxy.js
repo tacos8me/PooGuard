@@ -11,7 +11,12 @@
  */
 const express = require('express');
 const axios = require('axios');
+const http = require('http');
+const https = require('https');
 const { analyzeTextCached } = require('../services/modelService');
+
+const upstreamHttpAgent = new http.Agent({ keepAlive: true, maxSockets: 20 });
+const upstreamHttpsAgent = new https.Agent({ keepAlive: true, maxSockets: 20 });
 const { getFirewallConfig, getModelConfig, determineAction } = require('./firewall');
 const { publishEvent, CHANNELS } = require('../services/redis');
 const logger = require('../services/logger');
@@ -86,7 +91,7 @@ async function logProxyRequest({ userText, scores, action, detectedThreats, late
       source: 'proxy',
     };
 
-    await publishEvent(CHANNELS.FIREWALL_EVENTS, event);
+    publishEvent(CHANNELS.FIREWALL_EVENTS, event).catch(err => logger.error('Failed to publish proxy event', { error: err.message }));
     return log;
   } catch (err) {
     logger.error('Failed to log proxy request', { error: err.message });
@@ -327,6 +332,8 @@ async function handleNonStreaming(req, res, upstreamUrl, headers, body, ctx) {
     const response = await axios.post(upstreamUrl, body, {
       headers,
       timeout: 120000,
+      httpAgent: upstreamHttpAgent,
+      httpsAgent: upstreamHttpsAgent,
     });
 
     const latencyMs = Date.now() - ctx.startTime;
@@ -406,6 +413,8 @@ async function handleStreaming(req, res, upstreamUrl, headers, body, ctx) {
       headers,
       timeout: 120000,
       responseType: 'stream',
+      httpAgent: upstreamHttpAgent,
+      httpsAgent: upstreamHttpsAgent,
     });
 
     response.data.on('data', (chunk) => {

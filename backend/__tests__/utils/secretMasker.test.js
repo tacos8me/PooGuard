@@ -3,30 +3,30 @@ const { mask, containsSecrets, detectSecretTypes, normalizeText, SECRET_PATTERNS
 describe('secretMasker', () => {
   describe('mask()', () => {
     it('should mask OpenAI API keys', () => {
-      const input = 'my key is sk-abc123def456ghi789jkl012mno345pqr';
+      const input = 'my key is sk-testFAKE00000000000000000000000';
       const result = mask(input);
       expect(result.masked).toContain('[REDACTED:openai_key]');
-      expect(result.masked).not.toContain('sk-abc123');
+      expect(result.masked).not.toContain('sk-testFAKE');
       expect(result.detected.length).toBeGreaterThanOrEqual(1);
       expect(result.detected.some(d => d.type === 'openai_key')).toBe(true);
     });
 
     it('should mask Anthropic API keys', () => {
-      const input = 'key: sk-ant-abc123def456ghi789jkl012mno345pqr';
+      const input = 'key: sk-ant-testFAKE0000000000000000000000';
       const result = mask(input);
       expect(result.masked).toContain('[REDACTED:anthropic_key]');
-      expect(result.masked).not.toContain('sk-ant-abc123');
+      expect(result.masked).not.toContain('sk-ant-testFAKE');
     });
 
     it('should mask AWS access keys', () => {
-      const input = 'AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE';
+      const input = 'AWS_ACCESS_KEY_ID=AKIAEXAMPLE00000FAKE';
       const result = mask(input);
       expect(result.masked).toContain('[REDACTED:aws_key]');
-      expect(result.masked).not.toContain('AKIAIOSFODNN7EXAMPLE');
+      expect(result.masked).not.toContain('AKIAEXAMPLE00000FAKE');
     });
 
     it('should mask AWS secret keys', () => {
-      const input = 'aws_secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"';
+      const input = 'aws_secret_access_key="wJalrXUtnFEMI/EXAMPLEKEY000000000000FAKE"';
       const result = mask(input);
       expect(result.masked).toContain('[REDACTED:aws_secret]');
       expect(result.masked).not.toContain('wJalrXUtnFEMI');
@@ -130,7 +130,7 @@ describe('secretMasker', () => {
     });
 
     it('should detect multiple secrets', () => {
-      const input = 'key1: sk-test12345678901234567890 and key2: ghp_abcdefghijklmnopqrstuvwxyz1234567890';
+      const input = 'key1: sk-testFAKE0000000000000aa and key2: ghp_TESTFAKE000000000000000000000000fake';
       const result = mask(input);
       expect(result.detected.length).toBeGreaterThanOrEqual(2);
       expect(result.masked).toContain('[REDACTED:openai_key]');
@@ -156,7 +156,7 @@ describe('secretMasker', () => {
     });
 
     it('should return detected secrets sorted by position', () => {
-      const input = 'first: ghp_abcdefghijklmnopqrstuvwxyz1234567890 second: sk-test12345678901234567890abc';
+      const input = 'first: ghp_TESTFAKE000000000000000000000000fake second: sk-testFAKE00000000000000000bb';
       const result = mask(input);
       expect(result.detected.length).toBeGreaterThanOrEqual(2);
       // Check that positions are sorted
@@ -168,15 +168,15 @@ describe('secretMasker', () => {
 
   describe('containsSecrets()', () => {
     it('should return true when OpenAI key present', () => {
-      expect(containsSecrets('sk-abc12345678901234567890')).toBe(true);
+      expect(containsSecrets('sk-testFAKE000000000000cc')).toBe(true);
     });
 
     it('should return true when GitHub token present', () => {
-      expect(containsSecrets('ghp_abcdefghijklmnopqrstuvwxyz1234567890')).toBe(true);
+      expect(containsSecrets('ghp_TESTFAKE000000000000000000000000fake')).toBe(true);
     });
 
     it('should return true when AWS key present', () => {
-      expect(containsSecrets('AKIAIOSFODNN7EXAMPLE')).toBe(true);
+      expect(containsSecrets('AKIAEXAMPLE00000FAKE')).toBe(true);
     });
 
     it('should return true when JWT present', () => {
@@ -202,17 +202,17 @@ describe('secretMasker', () => {
 
   describe('detectSecretTypes()', () => {
     it('should return array with openai_key for OpenAI keys', () => {
-      const types = detectSecretTypes('sk-abc12345678901234567890');
+      const types = detectSecretTypes('sk-testFAKE000000000000cc');
       expect(types).toContain('openai_key');
     });
 
     it('should return array with github_pat for GitHub PATs', () => {
-      const types = detectSecretTypes('ghp_abcdefghijklmnopqrstuvwxyz1234567890');
+      const types = detectSecretTypes('ghp_TESTFAKE000000000000000000000000fake');
       expect(types).toContain('github_pat');
     });
 
     it('should return array with aws_access_key for AWS keys', () => {
-      const types = detectSecretTypes('AKIAIOSFODNN7EXAMPLE');
+      const types = detectSecretTypes('AKIAEXAMPLE00000FAKE');
       expect(types).toContain('aws_access_key');
     });
 
@@ -222,7 +222,7 @@ describe('secretMasker', () => {
     });
 
     it('should return multiple types for multiple secrets', () => {
-      const input = 'sk-abc12345678901234567890 and ghp_abcdefghijklmnopqrstuvwxyz1234567890';
+      const input = 'sk-testFAKE000000000000cc and ghp_TESTFAKE000000000000000000000000fake';
       const types = detectSecretTypes(input);
       expect(types).toContain('openai_key');
       expect(types).toContain('github_pat');
@@ -277,7 +277,7 @@ describe('secretMasker', () => {
     });
 
     it('should not match OpenAI keys with Stripe pattern', () => {
-      const input = 'sk-abc12345678901234567890';
+      const input = 'sk-testFAKE000000000000cc';
       const result = mask(input);
       expect(result.detected.some(d => d.type === 'stripe_key')).toBe(false);
       expect(result.detected.some(d => d.type === 'openai_key')).toBe(true);
@@ -346,23 +346,23 @@ describe('secretMasker', () => {
 
   describe('normalizeText()', () => {
     it('should decode base64 encoded secrets', () => {
-      const secret = 'sk-abc12345678901234567890';
+      const secret = 'sk-testFAKE000000000000cc';
       const encoded = Buffer.from(secret).toString('base64');
       const result = normalizeText(encoded);
       expect(result).toContain(secret);
     });
 
     it('should decode hex encoded secrets', () => {
-      const secret = 'sk-abc12345678901234567890';
+      const secret = 'sk-testFAKE000000000000cc';
       const encoded = Buffer.from(secret).toString('hex');
       const result = normalizeText(encoded);
       expect(result).toContain(secret);
     });
 
     it('should decode URL encoded text', () => {
-      const text = 'key%3Dsk-abc12345678901234567890';
+      const text = 'key%3Dsk-testFAKE000000000000cc';
       const result = normalizeText(text);
-      expect(result).toContain('key=sk-abc12345678901234567890');
+      expect(result).toContain('key=sk-testFAKE000000000000cc');
     });
 
     it('should return original for normal text', () => {
@@ -382,7 +382,7 @@ describe('secretMasker', () => {
 
   describe('encoded secret detection', () => {
     it('should detect base64-encoded OpenAI key in mask()', () => {
-      const secret = 'sk-abc12345678901234567890';
+      const secret = 'sk-testFAKE000000000000cc';
       const encoded = Buffer.from(secret).toString('base64');
       const result = mask(`data: ${encoded}`);
       expect(result.detected.some(d => d.type === 'openai_key_encoded')).toBe(true);
@@ -391,20 +391,20 @@ describe('secretMasker', () => {
     });
 
     it('should detect base64-encoded secrets in containsSecrets()', () => {
-      const secret = 'sk-abc12345678901234567890';
+      const secret = 'sk-testFAKE000000000000cc';
       const encoded = Buffer.from(secret).toString('base64');
       expect(containsSecrets(encoded)).toBe(true);
     });
 
     it('should detect base64-encoded secrets in detectSecretTypes()', () => {
-      const secret = 'sk-abc12345678901234567890';
+      const secret = 'sk-testFAKE000000000000cc';
       const encoded = Buffer.from(secret).toString('base64');
       const types = detectSecretTypes(encoded);
       expect(types.some(t => t.includes('encoded'))).toBe(true);
     });
 
     it('should detect hex-encoded AWS key in mask()', () => {
-      const secret = 'AKIAIOSFODNN7EXAMPLE';
+      const secret = 'AKIAEXAMPLE00000FAKE';
       const encoded = Buffer.from(secret).toString('hex');
       const result = mask(encoded);
       expect(result.detected.some(d => d.type === 'aws_access_key_encoded')).toBe(true);

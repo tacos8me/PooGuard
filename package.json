@@ -8,26 +8,12 @@
     "frontend"
   ],
   "scripts": {
-    "prepare": "husky",
     "lint": "npm run lint --workspaces --if-present",
     "lint:backend": "cd backend && npm run lint",
     "lint:frontend": "cd frontend && npm run lint",
     "test": "npm run test --workspaces --if-present"
   },
-  "lint-staged": {
-    "backend/**/*.js": [
-      "eslint --fix --config backend/eslint.config.js"
-    ],
-    "frontend/**/*.{js,jsx,ts,tsx}": [
-      "eslint --fix --config frontend/eslint.config.js"
-    ],
-    "model-service/**/*.py": [
-      "black --config model-service/pyproject.toml",
-      "flake8 --config model-service/.flake8"
-    ]
-  },
   "devDependencies": {
-    "husky": "^9.1.7",
     "lint-staged": "^16.2.7"
   }
 }

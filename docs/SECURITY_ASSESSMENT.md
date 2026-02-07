@@ -20,16 +20,16 @@ This assessment covers **8 security domains**: authentication & session manageme
 | ID | Severity | Domain | Finding | Status |
 |----|----------|--------|---------|--------|
 | F-01 | HIGH | Auth | JWT secret has no runtime minimum-length enforcement | Open |
-| F-02 | HIGH | Credentials | Default admin password fallback in seed (`admin123`) | Open |
+| F-02 | HIGH | Credentials | Default admin password fallback in seed (`admin123`) | **Fixed** |
 | F-03 | MEDIUM | Auth | JWT algorithm not explicitly specified in `verify()` | Open |
 | F-04 | MEDIUM | Auth | No refresh token rotation or reuse detection | Open |
 | F-05 | MEDIUM | API Keys | API key hash comparison via SQL (not timing-safe) | Accepted Risk |
 | F-06 | MEDIUM | Frontend | JWT stored in localStorage (standard SPA pattern) | Accepted Risk |
 | F-07 | MEDIUM | Frontend | CSP `style-src 'unsafe-inline'` required by Tailwind | Accepted Risk |
-| F-08 | MEDIUM | Model Svc | Health/metrics endpoints expose GPU and model info | Open |
-| F-09 | MEDIUM | Model Svc | Error responses include exception details (`str(e)`) | Open |
-| F-10 | MEDIUM | Model Svc | Internal API key uses Python `==` (not timing-safe) | Accepted Risk |
-| F-11 | MEDIUM | Database | Redis has no authentication (internal network only) | Accepted Risk |
+| F-08 | MEDIUM | Model Svc | Health/metrics endpoints expose GPU and model info | **Fixed** |
+| F-09 | MEDIUM | Model Svc | Error responses include exception details (`str(e)`) | **Fixed** |
+| F-10 | MEDIUM | Model Svc | Internal API key uses Python `==` (not timing-safe) | **Fixed** |
+| F-11 | MEDIUM | Database | Redis has no authentication (internal network only) | **Fixed** |
 | F-12 | MEDIUM | Database | No automated data retention or GDPR erasure | Open |
 | F-13 | LOW | Network | No DNS rebinding mitigation on proxy upstream URL | Accepted Risk |
 | F-14 | LOW | Frontend | Axios 1.6.5 slightly outdated (current: 1.7.x) | Open |

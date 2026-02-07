@@ -51,7 +51,7 @@ jest.mock('../../src/utils/encryption', () => ({
 // Mock axios for model config notify
 jest.mock('axios');
 
-const { router: firewallRouter, initDb, determineAction } = require('../../src/routes/firewall');
+const { router: firewallRouter, initDb, determineAction, clearConfigCache } = require('../../src/routes/firewall');
 const sessionTracker = require('../../src/services/sessionTracker');
 const { createAuditLog } = require('../../src/middleware/auditLog');
 
@@ -165,6 +165,7 @@ describe('Firewall Routes', () => {
   let mockDb;
 
   beforeEach(() => {
+    clearConfigCache();
     mockDb = createMockDb();
     app = createApp(mockDb);
     jest.clearAllMocks();

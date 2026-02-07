@@ -53,7 +53,7 @@ jest.mock('../../src/utils/encryption', () => ({
 jest.mock('axios');
 
 const { router: proxyRouter, initDb: initProxyDb } = require('../../src/routes/proxy');
-const { initDb: initFirewallDb } = require('../../src/routes/firewall');
+const { initDb: initFirewallDb, clearConfigCache } = require('../../src/routes/firewall');
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -166,6 +166,7 @@ describe('Proxy Routes', () => {
   let mockDb;
 
   beforeEach(() => {
+    clearConfigCache();
     // Default: model provider configured
     mockDb = createMockDb({
       firewallConfig: {
